@@ -34,11 +34,14 @@ def handle_command(text):
             "/start – Show bot is running\n"
             "/shutdown – Gracefully stop the bot\n"
             "/reload – Restart the bot process\n"
+            "/pause – Pause AI trading\n"
+            "/resume – Resume AI trading\n"
+            "/threshold 0.85 – Set AI signal cutoff\n"
             "/balance – Show current asset balances\n"
             "/buy – Force execute strategy once\n"
             "/convert USD 100 – Convert to GBP\n"
             "/discovered – Show AI-picked trade pairs\n"
-            "/summary – Show open positions\n"
+            "/positions – Show positions with P&L\n"
         )
         send_telegram(help_text)
 
@@ -125,16 +128,6 @@ def handle_command(text):
             send_telegram(f"💱 {amount} {currency} = £{result:.2f}")
         except Exception as e:
             send_telegram(f"❌ Conversion failed: {e}")
-
-    elif text == "/summary":
-        summary = []
-        for pair, pos in STRATEGY.open_positions.items():
-            p = pos['price']
-            v = pos['volume']
-            total = round(p * v, 2)
-            summary.append(f"{pair}: {v} @ £{p:.2f} = £{total:.2f}")
-        msg = "📊 Open Positions:\n" + ("\n".join(summary) if summary else "No active trades.")
-        send_telegram(msg)
 
     else:
         send_telegram(f"❓ Unknown command: {text}")
