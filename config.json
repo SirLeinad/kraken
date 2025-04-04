@@ -14,6 +14,8 @@
     "buy_allocation_pct": 0.10,
     "take_profit_pct": 0.05,
     "exit_below_ai_score": 0.3,
+    "min_confidence": 0.80,
+    "bot_enabled": true,
     "trade_live": true,
     "hourly_pl_report": true,
     "excluded_pairs": [

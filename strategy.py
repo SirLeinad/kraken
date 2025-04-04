@@ -174,9 +174,17 @@ class TradeStrategy:
         price = self.fetch_latest_price(pair)
         alloc_gbp = gbp_balance * BUY_ALLOCATION_PCT
         alloc_quote = self.gbp_to_quote(pair, alloc_gbp, self.kraken)
+        MAX_PAIR_EXPOSURE_GBP = 100  # e.g. allow max £100 exposure per pair
 
         vol = round(alloc_quote / price, 6)
         leverage = LEVERAGE_BY_PAIR.get(pair.upper()) if MARGIN_ENABLED else None
+
+        existing_vol = self.open_positions.get(pair, {}).get("volume", 0)
+        max_vol = (MAX_PAIR_EXPOSURE_GBP / price)
+
+        if existing_vol >= max_vol:
+            notify(f"{USER}: Already holding enough {pair}. Skipping buy.", key=f"skip_{pair}", priority="medium")
+            return used_gbp
 
         if PAPER_MODE:
             self.open_positions[pair] = {'price': price, 'volume': vol}

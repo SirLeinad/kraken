@@ -15,6 +15,19 @@ class Config:
         with CONFIG_PATH.open() as f:
             return json.load(f)
 
+    def set(self, key: str, value):
+        if key in self._config:
+            self._config[key] = value
+        else:
+            print(f"[CONFIG] Set new key: {key}")
+            self._config[key] = value
+        try:
+            with open("config.json", "w") as f:
+                json.dump(self._config, f, indent=2)
+            print(f"[CONFIG] Updated {key} = {value}")
+        except Exception as e:
+            print(f"[CONFIG] Failed to persist config: {e}")
+
     def get(self, *keys, default=None):
         data = self._config
 
