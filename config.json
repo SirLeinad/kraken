@@ -1,0 +1,61 @@
+{
+  "telegram": {
+    "bot_token": "8053622861:AAGqwj5RiX9c7CwvL2JmCVJ22KX0UmqPl-o",
+    "chat_id": "1084100703"
+  },
+  "kraken": {
+    "api_key": "41L5SRNV/30XLCk4/LwNooNPDRV8ukwycVfN5/NAFtWKkFaa6xITOsMN",
+    "api_secret": "VGetVrfhDp8WB8JXOZXZiu/6sNyR9GL2IviGD42UpRqR0QlRYXZTGMyPSObYQw8i5y6PNIOQRtLCo8CjHmKrDw=="
+  },
+  "strategy": {
+    "initial_budget_gbp": 500,
+    "stop_loss_pct": 0.02,
+    "bull_threshold": 0.6,
+    "buy_allocation_pct": 0.10,
+    "take_profit_pct": 0.05,
+    "exit_below_ai_score": 0.3,
+    "trade_live": true,
+    "hourly_pl_report": true,
+    "excluded_pairs": [
+      "XRPGBP",
+      "DOGEGBP",
+      "GALAGBP",
+      "BONKUSD",
+      "XLMGBP"
+    ],
+    "focus_pairs": [
+      "XBTGBP",
+      "ETHGBP",
+      "SOLGBP",
+      "DOTGBP"
+    ]
+  },
+  "telegram_intervals": {
+    "medium_sec": 900,
+    "low_sec": 3600
+  },
+  "discovery": {
+    "enabled": true,
+    "interval_hours": 4,
+    "min_volume_24h_gbp": 100000,
+    "max_active_pairs": 10
+  },
+  "margin": {
+    "enabled": true,
+    "leverage_by_pair": {
+      "XBTUSD": 5,
+      "USDTEUR": 3,
+      "USDTUSD": 2,
+      "XBTGBP": 3,
+      "ETHGBP": 3,
+      "SOLGBP": 3
+    }
+  },
+  "paper_trading": false,
+  "user": "Daniel",
+  "summary_time": "08:00",
+  "summary_retention_days": 14,
+  "train_from_backtest": true,
+  "telegram_enabled": true,
+  "use_ml_model": false
+}
