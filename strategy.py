@@ -58,43 +58,51 @@ class TradeStrategy:
             self.open_positions = {}
             print("[INFO] Cleared all old paper positions on live start.")
 
-    def convert_to_gbp(pair, value, kraken_client):
+    def convert_to_gbp(pair: str, value: float, kraken) -> float:
         """
-        Converts value in quote currency to GBP if needed.
-        For example: value is in USD, pair = ETHUSD → convert to ETHGBP
+        Converts value from pair's quote currency to GBP.
+        Only needed if pair isn't already in GBP.
         """
-        quote = pair[-3:]
-        if quote == "GBP":
+        if pair.endswith("GBP"):
             return value
-
-        conversion_pair = f"{quote}GBP"
+        quote = pair[-3:]
+        conversion_pair = quote + "GBP"  # e.g. USDGBP or EURGBP
         try:
-            ticker = kraken_client.get_ticker(conversion_pair)
+            ticker = kraken.get_ticker(conversion_pair)
             rate = float(ticker["c"].iloc[0][0])
             return value * rate
         except Exception as e:
-            print(f"[WARN] Failed to convert {value} {quote} to GBP: {e}")
-            return value  # fallback: assume 1:1 if unknown
-            
+            print(f"[FX] Failed to convert {value} {quote} to GBP: {e}")
+            return value  # fallback to raw
+
+    def gbp_to_quote(self, pair: str, gbp_amount: float, kraken) -> float:
+        """
+        Converts a GBP amount to the pair's quote currency (e.g., USD, EUR) using latest FX rate.
+        If pair ends in GBP, returns unchanged.
+        """
+        quote = pair[-3:]
+        if quote == "GBP":
+            return gbp_amount
+
+        fx_pair = quote + "GBP"
+        try:
+            ticker = kraken.get_ticker(fx_pair)
+            rate = float(ticker["c"].iloc[0][0])
+            return gbp_amount / rate
+        except Exception as e:
+            print(f"[FX] Failed to convert {gbp_amount} GBP to {quote}: {e}")
+            return gbp_amount  # fallback
+
     def log_trade_profit(self, pair, entry_price, exit_price, volume, reason):
         if entry_price is None:
             print(f"[WARN] Missing entry price for {pair}. Skipping gain calc.")
             return
-        gain = (exit_price - entry_price) * volume
+
+        raw_gain = (exit_price - entry_price) * volume
+        gain = self.convert_to_gbp(pair, raw_gain, kraken)
+
         with open("logs/profit_log.csv", "a") as f:
             f.write(f"{datetime.utcnow()},{pair},{entry_price},{exit_price},{volume},{gain:.4f},{reason}\n")
-
-    def load_discovered_pairs(self):
-        from pathlib import Path
-        import json
-        path = Path("data/discovered_pairs.json")
-        if path.exists():
-            with open(path) as f:
-                return set(json.load(f))
-        return set()
-
-        self.discovered_pairs = self.load_discovered_pairs()
-        self.validate_open_positions()
 
     def load_discovered_pairs(self):
         path = Path("data/discovered_pairs.json")
@@ -107,6 +115,9 @@ class TradeStrategy:
                 print(f"[WARN] Failed to load discovered pairs: {e}")
                 return set()
         return set()
+
+        self.discovered_pairs = self.load_discovered_pairs()
+        self.validate_open_positions()
 
     def validate_open_positions(self):
         valid_positions = {}
@@ -162,20 +173,22 @@ class TradeStrategy:
 
         price = self.fetch_latest_price(pair)
         alloc_gbp = gbp_balance * BUY_ALLOCATION_PCT
-        vol = round(alloc_gbp / price, 6)
+        alloc_quote = self.gbp_to_quote(pair, alloc_gbp, self.kraken)
+
+        vol = round(alloc_quote / price, 6)
         leverage = LEVERAGE_BY_PAIR.get(pair.upper()) if MARGIN_ENABLED else None
 
         if PAPER_MODE:
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
             log_trade(pair, "buy", vol, price)
-            buy_order_notification(USER, pair, vol, price, leverage, paper=True, priority="high")
+            buy_order_notification(USER, pair, vol, price, leverage, paper=True, gbp_equivalent=alloc_gbp)
         else:
             result = kraken.place_order(pair, side="buy", volume=vol, leverage=leverage)
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
             log_trade(pair, "buy", vol, price)
-            buy_order_notification(USER, pair, vol, price, leverage, result, priority="high")
+            buy_order_notification(USER, pair, vol, price, leverage, result, gbp_equivalent=alloc_gbp)
             return used_gbp + alloc_gbp
 
     def check_stop_loss(self, pair):

@@ -51,10 +51,11 @@ def paper_sell_notification(user, pair, vol, price, reason):
     msg = f"{user}: 🧪 Paper SELL {vol} {pair} at £{price:.2f} ({reason})"
     return notify(msg, key=f"paper_sell_{pair}", priority="high")
 
-def buy_order_notification(user, pair, vol, price, leverage=None, result=None, paper=False):
+def buy_order_notification(user, pair, vol, price, leverage=None, result=None, paper=False, gbp_equivalent=None):
     label = "📝 Paper BUY" if paper else "📈 Bought"
     lev_text = f"(leverage={leverage or 'N/A'})"
-    msg = f"{user}: {label} {vol} {pair} @ £{price:.2f} {lev_text}"
+    gbp_text = f" (~£{gbp_equivalent:.2f})" if gbp_equivalent else ""
+    msg = f"{user}: {label} {vol} {pair} @ £{price:.2f}{gbp_text} {lev_text}"
     if result:
         msg += f" Order: {result}"
     return notify(msg, key=f"buy_{pair}", priority="high")
