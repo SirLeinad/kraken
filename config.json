@@ -15,6 +15,7 @@
     "take_profit_pct": 0.05,
     "exit_below_ai_score": 0.3,
     "min_confidence": 0.80,
+    "pair_trade_cooldown_sec": 3600,
     "bot_enabled": true,
     "trade_live": true,
     "hourly_pl_report": true,
@@ -40,7 +41,7 @@
     "enabled": true,
     "interval_hours": 4,
     "min_volume_24h_gbp": 100000,
-    "max_active_pairs": 10
+    "max_active_pairs": 5
   },
   "margin": {
     "enabled": true,

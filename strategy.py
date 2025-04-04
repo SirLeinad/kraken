@@ -37,6 +37,8 @@ class TradeStrategy:
         self.balance = kraken.get_balance()
         self.open_positions = db.load_positions()
         self.ai_scores = defaultdict(float)
+        self.last_pair_trade_time = {}  # pair: timestamp
+        self.pair_trade_cooldown = config.get("pair_trade_cooldown_sec", 3600)
 
         try:
             with open("data/discovered_pairs.json") as f:
@@ -171,6 +173,14 @@ class TradeStrategy:
             notify(f"{USER}: Not enough GBP to trade {pair}. Remaining: £{gbp_balance:.2f}", key=f"nogbp_{pair}", priority="medium")
             return used_gbp
 
+        last_time = self.last_pair_trade_time.get(pair)
+        now = time.time()
+
+        if last_time and (now - last_time) < self.pair_trade_cooldown:
+            notify(f"{USER}: Skipping {pair} — trade cooldown active.", key=f"cooldown_{pair}", priority="low")
+            return used_gbp
+
+
         price = self.fetch_latest_price(pair)
         alloc_gbp = gbp_balance * BUY_ALLOCATION_PCT
         alloc_quote = self.gbp_to_quote(pair, alloc_gbp, self.kraken)
@@ -197,6 +207,7 @@ class TradeStrategy:
             db.save_position(pair, price, vol)
             log_trade(pair, "buy", vol, price)
             buy_order_notification(USER, pair, vol, price, leverage, result, gbp_equivalent=alloc_gbp)
+            self.last_pair_trade_time[pair] = time.time()
             return used_gbp + alloc_gbp
 
     def check_stop_loss(self, pair):
