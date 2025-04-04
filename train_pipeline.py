@@ -31,4 +31,16 @@ def main():
         notify("📡 AI Model retrained successfully from backtest data.", key="retrain", priority="low")
 
 if __name__ == "__main__":
-    main()
+    run_pipeline()
+
+def run_pipeline(conf_threshold=0.8):
+    from backtest_pipeline import run_backtest  # adjust as needed
+    results = run_backtest()  # this must return list of (pair, score)
+
+    tradeables = {
+        pair: score for pair, score in results
+        if score >= conf_threshold
+    }
+
+    print(f"[PIPELINE] Selected pairs: {tradeables}")
+    return tradeables

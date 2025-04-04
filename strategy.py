@@ -33,7 +33,49 @@ BUY_ALLOCATION_PCT = config.strategy.get("buy_allocation_pct", 0.2)
 SCORE_HISTORY_FILE = "logs/ai_scores_history.json"
 
 class TradeStrategy:
+    def __init__(self):
+        self.balance = kraken.get_balance()
+        self.open_positions = db.load_positions()
+        self.ai_scores = defaultdict(float)
 
+        try:
+            with open("data/discovered_pairs.json") as f:
+                discovered = json.load(f)
+                self.discovered_pairs = {
+                    pair for pair, score in discovered.items()
+                    if score >= 0.8  # or whatever confidence threshold you want
+                }
+        except Exception as e:
+            print(f"[WARN] Couldn't load discovered pairs: {e}")
+            self.discovered_pairs = set()
+
+        self.focus_pairs = set(FOCUS_PAIRS) | self.discovered_pairs
+        print(f"[STRATEGY] Pairs to evaluate: {sorted(self.focus_pairs)}")
+
+        # Auto-clean stale paper trades if switching to live
+        if not PAPER_MODE:
+            db.clear_all_positions()
+            self.open_positions = {}
+            print("[INFO] Cleared all old paper positions on live start.")
+
+    def convert_to_gbp(pair, value, kraken_client):
+        """
+        Converts value in quote currency to GBP if needed.
+        For example: value is in USD, pair = ETHUSD → convert to ETHGBP
+        """
+        quote = pair[-3:]
+        if quote == "GBP":
+            return value
+
+        conversion_pair = f"{quote}GBP"
+        try:
+            ticker = kraken_client.get_ticker(conversion_pair)
+            rate = float(ticker["c"].iloc[0][0])
+            return value * rate
+        except Exception as e:
+            print(f"[WARN] Failed to convert {value} {quote} to GBP: {e}")
+            return value  # fallback: assume 1:1 if unknown
+            
     def log_trade_profit(self, pair, entry_price, exit_price, volume, reason):
         if entry_price is None:
             print(f"[WARN] Missing entry price for {pair}. Skipping gain calc.")
@@ -41,18 +83,6 @@ class TradeStrategy:
         gain = (exit_price - entry_price) * volume
         with open("logs/profit_log.csv", "a") as f:
             f.write(f"{datetime.utcnow()},{pair},{entry_price},{exit_price},{volume},{gain:.4f},{reason}\n")
-
-    def __init__(self):
-        self.balance = kraken.get_balance()
-        self.open_positions = db.load_positions()
-        self.ai_scores = defaultdict(float)
-        self.discovered_pairs = self.load_discovered_pairs()
-
-        # Auto-clean stale paper trades if switching to live
-        if not PAPER_MODE:
-            db.clear_all_positions()
-            self.open_positions = {}
-            print("[INFO] Cleared all old paper positions on live start.")
 
     def load_discovered_pairs(self):
         from pathlib import Path
