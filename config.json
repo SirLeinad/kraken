@@ -61,5 +61,6 @@
   "summary_retention_days": 14,
   "train_from_backtest": true,
   "telegram_enabled": true,
-  "use_ml_model": false
+  "use_ml_model": false,
+  "model_version": 1.0
 }

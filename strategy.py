@@ -41,6 +41,7 @@ class TradeStrategy:
         self.pair_trade_cooldown = config.get("pair_trade_cooldown_sec", 3600)
         self.discovery_path = Path("data/discovered_pairs.json")
         self.discovery_interval = config.get("discovery.interval_hours", 4)
+        self.model_version = self.discovered_data.get("model_version", "unknown")
 
         try:
             with open("data/discovered_pairs.json") as f:
@@ -223,14 +224,14 @@ class TradeStrategy:
         if PAPER_MODE:
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
-            meta = {"model": "v1.0", "confidence": self.ai_scores.get(pair)}
+            meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
             log_trade(pair, "buy", vol, price, meta=meta)
             buy_order_notification(USER, pair, vol, price, leverage, paper=True, gbp_equivalent=alloc_gbp)
         else:
             result = kraken.place_order(pair, side="buy", volume=vol, leverage=leverage)
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
-            meta = {"model": "v1.0", "confidence": self.ai_scores.get(pair)}
+            meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
             log_trade(pair, "buy", vol, price, meta=meta)
             buy_order_notification(USER, pair, vol, price, leverage, result, gbp_equivalent=alloc_gbp)
             self.last_pair_trade_time[pair] = time.time()
