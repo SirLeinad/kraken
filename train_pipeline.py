@@ -36,13 +36,19 @@ if __name__ == "__main__":
     run_pipeline()
 
 def run_pipeline(conf_threshold=0.8):
-    from backtest_pipeline import run_backtest  # adjust as needed
-    results = run_backtest()  # this must return list of (pair, score)
+    from backtest_pipeline import run_backtest
+    raw_results = run_backtest()  # Expected: list of (pair, score)
 
-    tradeables = {
-        pair: score for pair, score in results
-        if score >= conf_threshold
-    }
+    tradeables = {}
+    for item in raw_results:
+        if not isinstance(item, (list, tuple)) or len(item) != 2:
+            print(f"[PIPELINE] Skipping malformed result: {item}")
+            continue
+        pair, score = item
+        if isinstance(pair, str) and isinstance(score, (float, int)) and score >= conf_threshold:
+            tradeables[pair] = score
+        else:
+            print(f"[PIPELINE] Invalid score or pair format: {item}")
 
     print(f"[PIPELINE] Selected pairs: {tradeables}")
     return tradeables

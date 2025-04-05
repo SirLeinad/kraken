@@ -42,7 +42,8 @@
     "enabled": true,
     "interval_hours": 4,
     "min_volume_24h_gbp": 100000,
-    "max_active_pairs": 5
+    "max_active_pairs": 5,
+    "max_volatility": 0.15
   },
   "margin": {
     "enabled": true,

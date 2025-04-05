@@ -207,7 +207,14 @@ class TradeStrategy:
 
 
         price = self.fetch_latest_price(pair)
-        alloc_gbp = gbp_balance * BUY_ALLOCATION_PCT
+        confidence = self.ai_scores.get(pair, 0.5)
+        confidence = max(0.3, min(confidence, 0.95))  # clamp to range
+
+        scaling_factor = (confidence - 0.3) / (0.95 - 0.3)  # map to 0–1 scale
+        alloc_pct = config.strategy.get("buy_allocation_pct", 0.10)
+        alloc_gbp = gbp_balance * (alloc_pct + scaling_factor * alloc_pct)
+
+        print(f"[ALLOCATION] {pair} score={confidence:.2f} → allocation: {alloc_gbp:.2f}")
         alloc_quote = self.gbp_to_quote(pair, alloc_gbp, self.kraken)
         MAX_PAIR_EXPOSURE_GBP = 100  # e.g. allow max £100 exposure per pair
 
@@ -319,6 +326,15 @@ class TradeStrategy:
                     report.append(f"⏸ No signal: {pair}")  # suppressed for cleaner summary
             except Exception as e:
                 report.append(f"❌ Error {pair}: {e}")
+
+        confidence = self.ai_scores.get(pair)
+        last_trade = self.trade_history.get(pair, {})
+        last_pnl = last_trade.get("pnl", 0)
+
+        if confidence and last_pnl < 0:
+            adjusted_conf = confidence * 0.9  # decay 10% if previous trade lost money
+            print(f"[DECAY] Adjusted confidence for {pair}: {confidence:.2f} → {adjusted_conf:.2f}")
+            confidence = adjusted_conf
 
         if report:
             all_bal = kraken.get_all_balances()

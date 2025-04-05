@@ -39,9 +39,11 @@ def handle_command(text):
             "/threshold 0.85 – Set AI signal cutoff\n"
             "/balance – Show current asset balances\n"
             "/buy – Force execute strategy once\n"
-            "/convert USD 100 – Convert to GBP\n"
-            "/discovered – Show AI-picked trade pairs\n"
-            "/positions – Show positions with P&L\n"
+            "/convert USD 100 – Convert to GBP or EUR\n"
+            "/discovered – Show ML-picked trade pairs\n"
+            "/positions – Show active positions with P&L\n"
+            "/recent – Show last 5 trades\n"
+            "/config – View current config settings\n"
         )
         send_telegram(help_text)
 
@@ -53,6 +55,35 @@ def handle_command(text):
         send_telegram("👋 Shutting down bot...")
         notify(f"{USER}: 🔻 Shutdown triggered.", key="bot", priority="high")
         exit(0)
+
+    elif text == "/config":
+        try:
+            import json
+            with open("config.json") as f:
+                cfg = json.load(f)
+            formatted = json.dumps(cfg, indent=2)
+            send_telegram(f"🛠️ Current config:\n<pre>{formatted}</pre>", parse_mode="HTML")
+        except Exception as e:
+            send_telegram(f"❌ Failed to read config: {e}")
+
+    elif text == "/recent":
+        try:
+            from pathlib import Path
+            import json
+
+            path = Path("data/trade_history.json")
+            if not path.exists():
+                send_telegram("⚠️ No trade history yet.")
+            else:
+                lines = path.read_text().strip().splitlines()[-5:]
+                trades = [json.loads(line) for line in lines]
+                msg = "📈 Recent Trades:\n" + "\n\n".join(
+                    f"{t['timestamp'][:16]} {t['pair']} {t['action'].upper()} @ £{t['entry_price']} → £{t['exit_price']} (P&L: £{t['pnl']:+.2f})"
+                    for t in trades
+                )
+                send_telegram(msg)
+        except Exception as e:
+            send_telegram(f"❌ Failed to load trade history: {e}")
 
     elif text == "/reload":
         send_telegram("♻️ Reloading...")
