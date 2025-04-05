@@ -5,6 +5,8 @@ from datetime import datetime
 from config import Config
 from telegram_notifications import *
 from train_model_from_backtest import train_model
+import joblib
+joblib.dump(train_model(), "models/model_v1.0.pkl")
 
 config = Config()
 

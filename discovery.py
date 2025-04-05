@@ -13,7 +13,12 @@ class PairDiscovery:
         self.discovered = run_pipeline()  # returns dict: {pair: score}
         print(f"[DISCOVERY] Pairs from ML: {self.discovered}")
         self.save()
+        self.last_run = datetime.utcnow()
 
     def save(self):
+        data = {
+            "last_updated": datetime.utcnow().isoformat(),
+            "pairs": self.discovered
+        }
         with open(self.output_path, "w") as f:
-            json.dump(self.discovered, f, indent=2)
+            json.dump(data, f, indent=2)

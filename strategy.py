@@ -12,9 +12,9 @@ from datetime import datetime
 from pathlib import Path
 from time import sleep
 from collections import defaultdict
+from datetime import datetime, timedelta
 import os
 import json
-import os
 
 config = Config()
 kraken = KrakenClient()
@@ -39,13 +39,15 @@ class TradeStrategy:
         self.ai_scores = defaultdict(float)
         self.last_pair_trade_time = {}  # pair: timestamp
         self.pair_trade_cooldown = config.get("pair_trade_cooldown_sec", 3600)
+        self.discovery_path = Path("data/discovered_pairs.json")
+        self.discovery_interval = config.get("discovery.interval_hours", 4)
 
         try:
             with open("data/discovered_pairs.json") as f:
-                discovered = json.load(f)
+                data = json.load(f)
                 self.discovered_pairs = {
-                    pair for pair, score in discovered.items()
-                    if score >= 0.8  # or whatever confidence threshold you want
+                    pair for pair, score in data.get("pairs", {}).items()
+                    if score >= config.get("min_confidence", 0.8)
                 }
         except Exception as e:
             print(f"[WARN] Couldn't load discovered pairs: {e}")
@@ -53,6 +55,13 @@ class TradeStrategy:
 
         self.focus_pairs = set(FOCUS_PAIRS) | self.discovered_pairs
         print(f"[STRATEGY] Pairs to evaluate: {sorted(self.focus_pairs)}")
+
+        if self.should_refresh_discovery():
+            from discovery import PairDiscovery
+            discovery = PairDiscovery()
+            discovery.get_eligible_pairs()
+            print("[DISCOVERY] Discovery refreshed due to interval.")
+
 
         # Auto-clean stale paper trades if switching to live
         if not PAPER_MODE:
@@ -94,6 +103,21 @@ class TradeStrategy:
         except Exception as e:
             print(f"[FX] Failed to convert {gbp_amount} GBP to {quote}: {e}")
             return gbp_amount  # fallback
+
+    def should_refresh_discovery(self) -> bool:
+        if not self.discovery_path.exists():
+            return True
+        try:
+            with self.discovery_path.open() as f:
+                data = json.load(f)
+                ts = data.get("last_updated")
+                if not ts:
+                    return True
+                last_time = datetime.fromisoformat(ts)
+                return (datetime.utcnow() - last_time) > timedelta(hours=self.discovery_interval)
+        except Exception as e:
+            print(f"[DISCOVERY] Timestamp check failed: {e}")
+            return True
 
     def log_trade_profit(self, pair, entry_price, exit_price, volume, reason):
         if entry_price is None:
@@ -192,20 +216,22 @@ class TradeStrategy:
         existing_vol = self.open_positions.get(pair, {}).get("volume", 0)
         max_vol = (MAX_PAIR_EXPOSURE_GBP / price)
 
-        if existing_vol >= max_vol:
-            notify(f"{USER}: Already holding enough {pair}. Skipping buy.", key=f"skip_{pair}", priority="medium")
+        if len(self.open_positions) >= config.get("max_open_positions", 4):
+            notify(f"{USER}: Max open positions reached. Skipping {pair}.", key=f"maxpos_{pair}", priority="medium")
             return used_gbp
 
         if PAPER_MODE:
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
-            log_trade(pair, "buy", vol, price)
+            meta = {"model": "v1.0", "confidence": self.ai_scores.get(pair)}
+            log_trade(pair, "buy", vol, price, meta=meta)
             buy_order_notification(USER, pair, vol, price, leverage, paper=True, gbp_equivalent=alloc_gbp)
         else:
             result = kraken.place_order(pair, side="buy", volume=vol, leverage=leverage)
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
-            log_trade(pair, "buy", vol, price)
+            meta = {"model": "v1.0", "confidence": self.ai_scores.get(pair)}
+            log_trade(pair, "buy", vol, price, meta=meta)
             buy_order_notification(USER, pair, vol, price, leverage, result, gbp_equivalent=alloc_gbp)
             self.last_pair_trade_time[pair] = time.time()
             return used_gbp + alloc_gbp
@@ -250,6 +276,17 @@ class TradeStrategy:
             if score < EXIT_AI_SCORE:
                 should_exit = True
                 reason = f"AI-score low ({score:.3f})"
+
+        if (price - entry_price) / entry_price <= -STOP_LOSS_PCT:
+            notify(f"{USER}: 🔻 Stop-loss hit for {pair}. Selling...", priority="high")
+            self.place_sell(pair, reason="stop_loss")
+        elif (price - entry_price) / entry_price >= TAKE_PROFIT_PCT:
+            notify(f"{USER}: 🟢 Take-profit hit for {pair}. Selling...", priority="high")
+            self.place_sell(pair, reason="take_profit")
+        elif ai_score and ai_score < EXIT_BELOW_AI_SCORE:
+            notify(f"{USER}: ⚠️ AI confidence dropped below threshold for {pair}. Selling...", priority="medium")
+            self.place_sell(pair, reason="low_ai_conf")
+
 
         if should_exit:
             if PAPER_MODE:

@@ -6,11 +6,14 @@ import joblib
 from kraken_api import KrakenClient
 from config import Config
 import warnings
+import joblib
+
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 config = Config()
 USE_ML_MODEL = config.get("use_ml_model", default=False)
+MODEL_PATH = "models/model_v1.0.pkl"
 
 kraken = KrakenClient()
 
@@ -18,7 +21,7 @@ kraken = KrakenClient()
 MODEL = None
 if USE_ML_MODEL:
     try:
-        MODEL = joblib.load("models/ai_model.pkl")
+        MODEL = joblib.load(MODEL_PATH)
         print("✅ ML model loaded for confidence scoring.")
     except Exception as e:
         print(f"⚠️ Failed to load model: {e}")

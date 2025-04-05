@@ -120,15 +120,19 @@ def handle_command(text):
     elif text.startswith("/convert "):
         try:
             parts = text.split()
-            currency, amount = parts[1].upper(), float(parts[2])
-            fx_pair = currency + "GBP"
-            ticker = kraken.get_ticker(fx_pair)
-            rate = float(ticker["c"].iloc[0][0])
-            result = amount * rate
-            send_telegram(f"💱 {amount} {currency} = £{result:.2f}")
-        except Exception as e:
-            send_telegram(f"❌ Conversion failed: {e}")
+            from_cur = parts[1].upper()
+            amount = float(parts[2])
+            to_cur = parts[3].upper() if len(parts) > 3 else "GBP"
 
+            pair = from_cur + to_cur if from_cur + to_cur in kraken.assets else to_cur + from_cur
+            ticker = kraken.get_ticker(pair)
+            rate = float(ticker["c"].iloc[0][0])
+
+            converted = amount * rate if pair.startswith(from_cur) else amount / rate
+            send_telegram(f"💱 {amount} {from_cur} = {converted:.2f} {to_cur}")
+        except Exception as e:
+            send_telegram(f"❌ Usage: /convert USD 100 EUR\n{e}")
+            
     else:
         send_telegram(f"❓ Unknown command: {text}")
 
