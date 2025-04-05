@@ -44,6 +44,9 @@ def handle_command(text):
             "/positions – Show active positions with P&L\n"
             "/recent – Show last 5 trades\n"
             "/config – View current config settings\n"
+            "/summary – Show today's P&L and open positions\n"
+            "/graph – Export P&L graph (PNG)\n"
+            "/set model vX – Set AI model version\n"
         )
         send_telegram(help_text)
 
@@ -55,6 +58,20 @@ def handle_command(text):
         send_telegram("👋 Shutting down bot...")
         notify(f"{USER}: 🔻 Shutdown triggered.", key="bot", priority="high")
         exit(0)
+
+    elif text.startswith("/set model "):
+        model = text.split()[-1]
+        config.set("model_version", model)
+        send_telegram(f"📦 Switched model version to {model}")
+
+    elif text == "/graph":
+        try:
+            from export_graph import plot_profit_graph
+            path = plot_profit_graph()
+            files = {'document': open(path, 'rb')}
+            requests.post(f"{BASE_URL}/sendDocument", data={"chat_id": CHAT_ID}, files=files)
+        except Exception as e:
+            send_telegram(f"❌ Graph export failed: {e}")
 
     elif text == "/config":
         try:
@@ -84,6 +101,13 @@ def handle_command(text):
                 send_telegram(msg)
         except Exception as e:
             send_telegram(f"❌ Failed to load trade history: {e}")
+
+    elif text == "/summary":
+        try:
+            STRATEGY.send_daily_summary()
+            send_telegram("📊 Daily summary sent.")
+        except Exception as e:
+            send_telegram(f"❌ Summary error: {e}")
 
     elif text == "/reload":
         send_telegram("♻️ Reloading...")

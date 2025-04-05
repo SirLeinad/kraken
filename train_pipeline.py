@@ -52,3 +52,20 @@ def run_pipeline(conf_threshold=0.8):
 
     print(f"[PIPELINE] Selected pairs: {tradeables}")
     return tradeables
+
+def load_trade_history_for_training():
+    try:
+        import json
+        from pathlib import Path
+
+        path = Path("data/trade_history.json")
+        if not path.exists():
+            return []
+
+        with path.open() as f:
+            trades = [json.loads(line) for line in f if line.strip()]
+        return trades
+    except Exception as e:
+        print(f"[TRAIN] Failed to load trade history: {e}")
+        return []
+    # do not use in strategy, logger or telegram_bot.

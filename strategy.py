@@ -1,5 +1,7 @@
 # File: strategy.py
 
+import os
+import json
 import pandas as pd
 from kraken_api import KrakenClient
 from config import Config
@@ -13,8 +15,7 @@ from pathlib import Path
 from time import sleep
 from collections import defaultdict
 from datetime import datetime, timedelta
-import os
-import json
+from logger import log_trade_result
 
 config = Config()
 kraken = KrakenClient()
@@ -130,6 +131,17 @@ class TradeStrategy:
 
         with open("logs/profit_log.csv", "a") as f:
             f.write(f"{datetime.utcnow()},{pair},{entry_price},{exit_price},{volume},{gain:.4f},{reason}\n")
+
+        log_trade_result(
+            pair=pair,
+            action="buy",
+            volume=vol,
+            entry_price=entry,
+            exit_price=exit,
+            pnl=exit - entry,
+            model=self.model_version,
+            confidence=self.ai_scores.get(pair)
+        )
 
     def load_discovered_pairs(self):
         path = Path("data/discovered_pairs.json")
@@ -285,10 +297,11 @@ class TradeStrategy:
                 should_exit = True
                 reason = f"AI-score low ({score:.3f})"
 
-        if (price - entry_price) / entry_price <= -STOP_LOSS_PCT:
+        stop_loss_pct, take_profit_pct = self.get_dynamic_thresholds(pair)
+        if (price - entry_price) / entry_price <= -stop_loss_pct:
             notify(f"{USER}: 🔻 Stop-loss hit for {pair}. Selling...", priority="high")
             self.place_sell(pair, reason="stop_loss")
-        elif (price - entry_price) / entry_price >= TAKE_PROFIT_PCT:
+        elif (price - entry_price) / entry_price >= take_profit_pct:
             notify(f"{USER}: 🟢 Take-profit hit for {pair}. Selling...", priority="high")
             self.place_sell(pair, reason="take_profit")
         elif ai_score and ai_score < EXIT_BELOW_AI_SCORE:
@@ -302,7 +315,6 @@ class TradeStrategy:
                 paper_sell_notification(USER, pair, vol, current_price, reason, priority="high")
                 self.log_trade_profit(pair, entry_price, current_price, vol, reason)
             else:
-                #changed
                 leverage = LEVERAGE_BY_PAIR.get(pair.upper()) if MARGIN_ENABLED else None
                 result = kraken.place_order(pair, side="sell", volume=vol, leverage=leverage, reduce_only=bool(leverage))
                 log_trade(pair, "sell", vol, current_price)
@@ -310,6 +322,54 @@ class TradeStrategy:
                 self.log_trade_profit(pair, entry_price, current_price, vol, reason)
             del self.open_positions[pair]
             db.remove_position(pair)
+
+    def get_dynamic_thresholds(self, pair):
+        try:
+            df = get_price_history(pair)
+            vol = df["close"].pct_change().std()
+            if vol is None:
+                raise ValueError("No volatility")
+
+            stop_loss = min(0.03, vol * 2.0)  # e.g. 2× stddev
+            take_profit = max(0.04, vol * 3.0)  # slightly more
+
+            return stop_loss, take_profit
+        except:
+            return config.get("strategy.stop_loss_pct", 0.02), config.get("strategy.take_profit_pct", 0.05)
+
+    def send_daily_summary(self):
+        today = datetime.utcnow().strftime("%Y-%m-%d")
+        rows = db.get_all_trades()
+        daily_trades = [r for r in rows if r['timestamp'].startswith(today)]
+
+        buy_count = sum(1 for r in daily_trades if r['type'] == 'buy')
+        sell_count = sum(1 for r in daily_trades if r['type'] == 'sell')
+        profit = 0.0
+
+        for r in daily_trades:
+            if r['type'] == 'sell':
+                entry_price = db.get_entry_price(r['pair'])
+                if entry_price:
+                    profit += (r['price'] - entry_price) * r['volume'] if entry_price is not None else 0
+
+        lines = [
+            f"📅 Daily Summary ({today})",
+            f"Total Trades: {buy_count} buy / {sell_count} sell",
+            f"Realized P&L: £{profit:.2f}"
+        ]
+
+        if self.open_positions:
+            lines.append("\n📌 Open Positions:")
+            for pair, pos in self.open_positions.items():
+                try:
+                    current_price = self.fetch_latest_price(pair)
+                    gain = (current_price - pos['price']) * pos['volume']
+                    emoji = "🟢" if gain >= 0 else "🔻"
+                    lines.append(f"{emoji} {pair}: {gain:+.2f} GBP")
+                except:
+                    continue
+
+        notify(f"{USER}:\n" + "\n".join(lines), key="daily_summary", priority="low")
 
     def execute(self):
         print('[STRATEGY] Starting trade checks...')
@@ -372,37 +432,3 @@ class TradeStrategy:
                 hourly_pl_notification(USER, pl_lines)
                 
             self.store_top_ai_scores()
-
-def send_daily_summary(self):
-    today = datetime.utcnow().strftime("%Y-%m-%d")
-    rows = db.get_all_trades()
-    daily_trades = [r for r in rows if r['timestamp'].startswith(today)]
-
-    buy_count = sum(1 for r in daily_trades if r['type'] == 'buy')
-    sell_count = sum(1 for r in daily_trades if r['type'] == 'sell')
-    profit = 0.0
-
-    for r in daily_trades:
-        if r['type'] == 'sell':
-            entry_price = db.get_entry_price(r['pair'])
-            if entry_price:
-                profit += (r['price'] - entry_price) * r['volume'] if entry_price is not None else 0
-
-    lines = [
-        f"📅 Daily Summary ({today})",
-        f"Total Trades: {buy_count} buy / {sell_count} sell",
-        f"Realized P&L: £{profit:.2f}"
-    ]
-
-    if self.open_positions:
-        lines.append("\n📌 Open Positions:")
-        for pair, pos in self.open_positions.items():
-            try:
-                current_price = self.fetch_latest_price(pair)
-                gain = (current_price - pos['price']) * pos['volume']
-                emoji = "🟢" if gain >= 0 else "🔻"
-                lines.append(f"{emoji} {pair}: {gain:+.2f} GBP")
-            except:
-                continue
-
-    notify(f"{USER}:\n" + "\n".join(lines), key="daily_summary", priority="low")
