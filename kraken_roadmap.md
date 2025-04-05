@@ -29,7 +29,7 @@
 ## ❗ 5. Strategy Logic
 - [x] Focus pairs fallback works
 - [ ] Consider volatility/spread dynamically
-- [ ] Dynamic `buy_allocation_pct`, `stop_loss_pct`
+- [x] Dynamic `buy_allocation_pct`, `stop_loss_pct`
 
 ## 📦 Suggestions To Improve
 
@@ -40,12 +40,12 @@
 - [ ] `exit_below_ai_score` enforcement (implemented)
 
 ### Advanced ML
-- [ ] Store trade outcomes + learn from them
+- [x] Store trade outcomes + learn from them
 - [ ] Confidence score evolution
 - [ ] Signal blending (ML + MACD/RSI)
 
 ### Analytics & Reporting
 - [x] `/recent` trades (5 most recent)
-- [ ] `/summary today` showing today's P&L
-- [ ] Cron-based Telegram reports
-- [ ] CSV P&L export and PNG graph
+- [x] `/summary today` showing today's P&L
+- [x] Cron-based Telegram reports
+- [x] CSV P&L export and PNG graph
