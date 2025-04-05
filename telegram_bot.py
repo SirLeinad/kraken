@@ -27,6 +27,9 @@ def get_updates(offset=None):
         return {}
 
 def handle_command(text):
+    with open("logs/commands.log", "a") as f:
+        f.write(f"{datetime.now().isoformat()} :: {text}\n")
+
     if text == "/help":
         help_text = (
             "📘 Available commands:\n"
@@ -47,6 +50,8 @@ def handle_command(text):
             "/summary – Show today's P&L and open positions\n"
             "/graph – Export P&L graph (PNG)\n"
             "/set model vX – Set AI model version\n"
+            "/auditlog – See the auditlog\n"
+
         )
         send_telegram(help_text)
 
@@ -58,6 +63,13 @@ def handle_command(text):
         send_telegram("👋 Shutting down bot...")
         notify(f"{USER}: 🔻 Shutdown triggered.", key="bot", priority="high")
         exit(0)
+
+    elif text == "/auditlog":
+        try:
+            lines = Path("logs/commands.log").read_text().splitlines()[-10:]
+            send_telegram("📝 Last commands:\n" + "\n".join(lines))
+        except:
+            send_telegram("⚠️ No audit log available.")
 
     elif text.startswith("/set model "):
         model = text.split()[-1]
@@ -104,10 +116,33 @@ def handle_command(text):
 
     elif text == "/summary":
         try:
-            STRATEGY.send_daily_summary()
-            send_telegram("📊 Daily summary sent.")
+            from strategy import TradeStrategy
+            from logger import load_trade_history
+
+            strategy = STRATEGY  # assumes global instance
+            balances = strategy.balance
+            open_pos = strategy.open_positions
+            trades = load_trade_history(limit=50)
+
+            total_pnl = sum(t["pnl"] for t in trades if "pnl" in t)
+            today_trades = [
+                t for t in trades
+                if "timestamp" in t and t["timestamp"].startswith(datetime.utcnow().strftime("%Y-%m-%d"))
+            ]
+            today_pnl = sum(t["pnl"] for t in today_trades)
+
+            msg = f"📊 Summary Report\n"
+            msg += f"Date: {datetime.utcnow().strftime('%Y-%m-%d')}\n"
+            msg += f"Today's P&L: £{today_pnl:.2f}\n"
+            msg += f"Total P&L (last 50): £{total_pnl:.2f}\n"
+            msg += f"Open Positions: {len(open_pos)}\n\n"
+
+            for pair, pos in open_pos.items():
+                msg += f"{pair}: {pos['volume']} @ £{pos['price']:.2f}\n"
+
+            send_telegram(msg)
         except Exception as e:
-            send_telegram(f"❌ Summary error: {e}")
+            send_telegram(f"❌ Failed to generate summary: {e}")
 
     elif text == "/reload":
         send_telegram("♻️ Reloading...")

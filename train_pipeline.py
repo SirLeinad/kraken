@@ -69,3 +69,4 @@ def load_trade_history_for_training():
         print(f"[TRAIN] Failed to load trade history: {e}")
         return []
     # do not use in strategy, logger or telegram_bot.
+    # Usage python train_pipeline.py

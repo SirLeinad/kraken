@@ -20,6 +20,8 @@
     "bot_enabled": true,
     "trade_live": true,
     "hourly_pl_report": true,
+  },
+  "trading_rules": {
     "excluded_pairs": [
       "XRPGBP",
       "DOGEGBP",

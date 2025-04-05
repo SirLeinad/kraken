@@ -4,7 +4,7 @@
 ## ✅ 1. Telegram Bot
 - [x] Command routing working (/help, /buy, /convert, etc.)
 - [x] `/config` to view live values
-- [ ] Command audit log
+- [x] Command audit log
 
 ## ✅ 2. ML Discovery Pipeline
 - [x] `discovery.py` calls pipeline correctly
@@ -41,8 +41,8 @@
 
 ### Advanced ML
 - [x] Store trade outcomes + learn from them
-- [ ] Confidence score evolution
-- [ ] Signal blending (ML + MACD/RSI)
+- [x] Confidence score evolution
+- [x] Signal blending (ML + MACD/RSI)
 
 ### Analytics & Reporting
 - [x] `/recent` trades (5 most recent)
