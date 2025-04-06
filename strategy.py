@@ -245,14 +245,15 @@ class TradeStrategy:
 
         if PAPER_MODE:
             self.open_positions[pair] = {'price': price, 'volume': vol}
-            buy_order_notification(USER, pair, vol, price, leverage, paper=PAPER_MODE, gbp_equivalent=alloc_gbp)
             db.save_position(pair, price, vol)
+            notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
             meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
             log_trade(pair, "buy", vol, price, meta=meta)
         else:
             result = kraken.place_order(pair, side="buy", volume=vol, leverage=leverage)
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
+            notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
             meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
             log_trade(pair, "buy", vol, price, meta=meta)
             self.last_pair_trade_time[pair] = time.time()
