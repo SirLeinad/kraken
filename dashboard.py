@@ -18,7 +18,6 @@ def show_balance():
         print(f"  {asset}: {amount}")
     return balance
 
-
 def show_open_positions():
     conn = sqlite3.connect(DB_PATH)
     c = conn.cursor()
@@ -29,7 +28,6 @@ def show_open_positions():
     for r in rows:
         print(f"  {r[0]} — {r[2]} @ £{r[1]:.2f} [{r[3]}]")
     return rows
-
 
 def show_trade_history(limit=10, pair_filter=None, action_filter=None):
     conn = sqlite3.connect(DB_PATH)
@@ -73,7 +71,7 @@ def send_daily_summary():
     positions = show_open_positions()
     trades = show_trade_history(limit=10)
 
-    msg = f"<b>📊 Daily Summary for {Config.user}</b>\n\n"
+    msg = f"<b>📊 Daily Summary for {config.user}</b>\n\n"
     msg += "<b>Balance:</b>\n" + "\n".join(f"{k}: {v}" for k, v in balance.items()) + "\n\n"
 
     msg += "<b>Open Positions:</b>\n"

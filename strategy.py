@@ -3,7 +3,7 @@
 import os
 import json
 import pandas as pd
-from kraken_api import KrakenClient
+from kraken_api import KrakenClient, get_price_history
 from config import Config
 from telegram_notifications import *
 from database import Database
@@ -23,7 +23,7 @@ db = Database()
 self.kraken = kraken
 
 FOCUS_PAIRS = config.get("trading_rules.focus_pairs")
-STOP_LOSS = config.get['strategy.stop_loss_pct']
+STOP_LOSS = config.get('strategy.stop_loss_pct')
 EXCLUDED = config.get("trading_rules.excluded_pairs")
 USER = config.get("user")
 PAPER_MODE = config.get("paper_trading")
@@ -77,7 +77,7 @@ class TradeStrategy:
             self.open_positions = {}
             print("[INFO] Cleared all old paper positions on live start.")
 
-    def convert_to_gbp(pair: str, value: float, kraken) -> float:
+    def convert_to_gbp(self, pair: str, value: float, kraken) -> float:
         """
         Converts value from pair's quote currency to GBP.
         Only needed if pair isn't already in GBP.
@@ -192,7 +192,7 @@ class TradeStrategy:
         db_log = f"AI_SCORE|{pair}|{score:.4f}"
         with open("logs/ai_scores.log", "a") as f:
             f.write(f"{db_log}\n")
-        return score > config.get['strategy.bull_threshold']
+        return score > config.get('strategy.bull_threshold')
 
     def store_top_ai_scores(self):
         top_scores = sorted(self.ai_scores.items(), key=lambda x: x[1], reverse=True)[:5]

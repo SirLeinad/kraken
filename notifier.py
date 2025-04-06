@@ -7,8 +7,8 @@ config = Config()
 
 def send_telegram(msg):
     try:
-        bot_token = config.get['telegram.bot_token']
-        chat_id = config.get['telegram.chat_id']
+        bot_token = config.get("telegram.bot_token")
+        chat_id = config.get("telegram.chat_id")
         url = f"https://api.telegram.org/bot{bot_token}/sendMessage"
         payload = {
             "chat_id": chat_id,

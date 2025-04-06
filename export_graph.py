@@ -3,6 +3,10 @@ import matplotlib.pyplot as plt
 from datetime import datetime
 
 def plot_profit_graph():
+    if not Path("logs/profit_log.csv").exists():
+        print("No profit log found.")
+        return
+        
     df = pd.read_csv("logs/profit_log.csv", names=[
         "timestamp", "pair", "entry", "exit", "volume", "gain", "reason"
     ])

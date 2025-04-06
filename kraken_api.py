@@ -12,11 +12,9 @@ import pandas as pd
 PUBLIC_CALL_INTERVAL = 1.1
 _last_public_call = 0
 _lock = threading.Lock()
+config = Config()
 
 warnings.filterwarnings("ignore", message="'T' is deprecated")
-print("[DEBUG] kraken_api.py loaded")
-
-config = Config()
 
 class KrakenClient:
     def get_trade_balance(self, asset="ZUSD"):
@@ -24,8 +22,8 @@ class KrakenClient:
     
     def __init__(self):
         self.api = krakenex.API(
-            key=config.get['kraken.api_key'],
-            secret=config.get['kraken.api_secret']
+            key=config.get('kraken.api_key'),
+            secret=config.get('kraken.api_secret')
         )
         self.k = KrakenAPI(self.api)
 
@@ -64,6 +62,7 @@ class KrakenClient:
             }
         }
 
+    @staticmethod
     def get_price_history(pair: str, interval: int = 60, since: int = None) -> pd.DataFrame:
         url = "https://api.kraken.com/0/public/OHLC"
         params = {"pair": pair, "interval": interval}

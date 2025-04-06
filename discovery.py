@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 from config import Config
 from train_pipeline import run_pipeline
-from kraken_api import KrakenClient  # Assumes this returns OHLCV DataFrame
+from kraken_api import KrakenClient, get_price_history  # Assumes this returns OHLCV DataFrame
 
 class PairDiscovery:
     def __init__(self):

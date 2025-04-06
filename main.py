@@ -16,8 +16,8 @@ config = Config()
 strategy = TradeStrategy()
 discovery = PairDiscovery()
 
-INTERVAL = config.get['discovery.interval_hours'] * 3600
-USER = config.get['user']
+INTERVAL = config.get("discovery.interval_hours") * 3600
+USER = config.get("user")
 
 SUMMARY_TIME = config.get("summary_time", default="08:00")  # HH:MM
 SUMMARY_HOUR, SUMMARY_MINUTE = map(int, SUMMARY_TIME.split(":"))

@@ -42,8 +42,8 @@ def train_model():
     X, y = engineer_features(df)
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X, y)
-    joblib.dump(model, "models/ai_model.pkl")
-    joblib.dump(train_model(), "models/model_v1.0.pkl")
+    model = train_model()
+    joblib.dump(model, "models/model_v1.0.pkl")
     print(f"✅ Model trained on {len(df)} entries and saved to models/ai_model.pkl")
 
 if __name__ == "__main__":

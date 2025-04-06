@@ -22,7 +22,7 @@
     "hourly_pl_report": true
   },
   "trading_rules": {
-    "excludeds_pairs": [
+    "excluded_pairs": [
       "XRPGBP",
       "DOGEGBP",
       "GALAGBP",

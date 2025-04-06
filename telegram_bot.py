@@ -8,9 +8,9 @@ from strategy import TradeStrategy
 from telegram_notifications import notify
 
 config = Config()
-USER = config.get['user']
-BOT_TOKEN = config.get['telegram.bot_token']
-CHAT_ID = config.get['telegram.chat_id']
+USER = config.get('user')
+BOT_TOKEN = config.get('telegram.bot_token')
+CHAT_ID = config.get('telegram.chat_id')
 STRATEGY = TradeStrategy()
 
 BASE_URL = f"https://api.telegram.org/bot{BOT_TOKEN}"
