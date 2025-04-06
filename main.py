@@ -9,20 +9,22 @@ from discovery import PairDiscovery
 from telegram_notifications import *
 from dashboard import send_daily_summary, show_balance, show_open_positions, show_trade_history
 from export_trades import export_trades_to_csv
+from database import Database
 import os
 import sys
 
 config = Config()
 strategy = TradeStrategy()
 discovery = PairDiscovery()
+db = Database()
 
 INTERVAL = config.get("discovery.interval_hours") * 3600
 USER = config.get("user")
 
 SUMMARY_TIME = config.get("summary_time", default="08:00")  # HH:MM
 SUMMARY_HOUR, SUMMARY_MINUTE = map(int, SUMMARY_TIME.split(":"))
-last_discovery = 0
-last_summary_date = None
+last_discovery = float(db.get_state("last_discovery") or 0)
+last_summary_date = db.get_state("last_summary_date")
 SUMMARY_DIR = Path("summaries")
 SUMMARY_DIR.mkdir(exist_ok=True)
 MAX_SUMMARY_AGE_DAYS = int(config.get("summary_retention_days", default=14))
@@ -96,21 +98,21 @@ def run_bot():
 
         # Daily summary
         dt_now = datetime.datetime.now()
-        if dt_now.strftime("%H:%M") == config.summary_time and dt_now.date() != last_summary_date:
+        if dt_now.strftime("%H:%M") == config.summary_time and (last_summary_date != dt_now.date().isoformat()):
             try:
                 strategy.send_daily_summary()
                 archive_daily_summary()
                 export_trades_to_csv()
-                last_summary_date = dt_now.date()
+                db.set_state("last_summary_date", dt_now.date().isoformat())  # <-- This updates DB
             except Exception as e:
                 notify(f"{USER}: Bot error occurred: {e}", key="error", priority="medium")
 
         # Discovery interval
         now = time.time()
-        if now - last_discovery >= INTERVAL:
+        if time.time() - last_discovery >= INTERVAL:
             try:
                 discovery.suggest_new_pairs()
-                last_discovery = now
+                db.set_state("last_discovery", time.time())  # <-- This line updates DB
             except Exception as e:
                 print(f"[ERROR] Discovery failed: {e}")
 

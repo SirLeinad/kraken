@@ -4,7 +4,9 @@ from notifier import send_telegram
 from config import Config
 import time
 import sys
+from database import Database
 
+db = Database()
 config = Config()
 
 INTERVALS = config.get("telegram_intervals") or {}
@@ -32,13 +34,18 @@ def notify(msg: str, key: str = None, priority: str = "medium"):
         db.set_state(f"last_sent_{key}", now)
 
     try:
-        print(f'[TELEGRAM] Sending: {msg}')
+        # Suppress if last send failure was < 10 minutes ago
+        last_fail = db.get_state("last_notify_failure")
+        if last_fail and (time.time() - float(last_fail)) < 600:
+            print("[TELEGRAM] Skipping due to recent send failure.")
+            return False
         success = send_telegram(msg)
         print(f"[TELEGRAM] Sent: {msg}" if success else f"[TELEGRAM] FAILED to send: {msg}")
         return success
     except Exception as e:
         import traceback
         print(f"[TELEGRAM] EXCEPTION: {e}\n" + traceback.format_exc())
+        db.set_state("last_notify_failure", time.time())
         return False
 
 # --- Notification Types ---

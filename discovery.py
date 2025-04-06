@@ -4,6 +4,8 @@ import json
 from datetime import datetime
 from pathlib import Path
 from config import Config
+from database import Database
+from time import time
 from train_pipeline import run_pipeline
 from kraken_api import KrakenClient  # Assumes this returns OHLCV DataFrame
 from utils.data_loader import load_ohlcv_csv
@@ -25,6 +27,14 @@ class PairDiscovery:
             return 0
 
     def get_eligible_pairs(self):
+        db = Database()
+        last_run = db.get_state("discovery_last_run")
+        interval = self.config.get("discovery.interval_hours", 4) * 3600
+
+        if last_run and (time() - float(last_run)) < interval:
+            print("[DISCOVERY] Skipped: interval not reached.")
+            return {}
+
         print("[DISCOVERY] Running pipeline...")
         results = run_pipeline(conf_threshold=self.conf_threshold)
         
@@ -52,6 +62,7 @@ class PairDiscovery:
             self.discovered = dict(top_pairs)
             print(f"[DISCOVERY] Trimmed to top {max_pairs} pairs")
 
+        db.set_state("discovery_last_run", time())
         self.save()
         return self.discovered
 

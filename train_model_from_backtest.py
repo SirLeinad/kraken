@@ -9,6 +9,7 @@ from utils.data_loader import load_ohlcv_csv
 import joblib
 from config import Config
 from notifier import notify
+from database import Database
 
 
 config = Config()
@@ -24,6 +25,7 @@ def engineer_features_from_ohlcv(df):
     return X, y
 
 def train_model(pair: str, notify_on_success: bool = True):
+    db = Database()
     if not USE_BACKTEST_TRAINING:
         print("⚠️ Backtest training is disabled in config.json. Enable 'train_from_backtest: true' to proceed.")
         return
@@ -38,6 +40,10 @@ def train_model(pair: str, notify_on_success: bool = True):
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
     score = model.score(X_test, y_test)
+
+    db.set_state(f"model_{pair}_score", round(score, 4))
+    db.set_state(f"model_{pair}_trained_at", datetime.utcnow().isoformat())
+    print(f"[MODEL] {pair} trained → accuracy={score:.2%}")
 
     joblib.dump(model, f"models/{pair}_model.pkl")
     if notify_on_success:
