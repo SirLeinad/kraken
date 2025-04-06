@@ -12,14 +12,29 @@ class PairDiscovery:
         self.output_path = Path("data/discovered_pairs.json")
         self.config = Config()
         self.conf_threshold = self.config.get("strategy.min_confidence", 0.8)
-        self.max_volatility = self.config.get("discovery.max_volatility", 0.15)
+
+    def get_24h_volume_gbp(pair):
+        try:
+            ticker = KrakenClient().get_ticker(pair)
+            price = float(ticker["c"].iloc[0][0])
+            vol = float(ticker["v"].iloc[0][1])  # 24h vol
+            return price * vol
+        except Exception as e:
+            print(f"[VOL24H] Error loading volume for {pair}: {e}")
+            return 0
 
     def get_eligible_pairs(self):
         print("[DISCOVERY] Running pipeline...")
         results = run_pipeline(conf_threshold=self.conf_threshold)
+        
         self.discovered = {}
+        self.min_volume_gbp = self.config.get("discovery.min_volume_24h_gbp", 100000)
+        self.max_volatility = self.config.get("discovery.max_volatility", 0.15)
 
         for pair, score in results.items():
+            if get_24h_volume_gbp(pair) < min_vol_gbp:
+                print(f"[DISCOVERY] Skipping {pair} due to low volume")
+                continue
             if score < self.conf_threshold:
                 continue
             vol = self.get_pair_volatility(pair)
@@ -30,7 +45,12 @@ class PairDiscovery:
                 continue
             self.discovered[pair] = score
 
-        print(f"[DISCOVERY] Selected pairs: {list(self.discovered)}")
+        max_pairs = self.config.get("discovery.max_active_pairs")
+        if max_pairs and len(self.discovered) > max_pairs:
+            top_pairs = sorted(self.discovered.items(), key=lambda x: x[1], reverse=True)[:max_pairs]
+            self.discovered = dict(top_pairs)
+            print(f"[DISCOVERY] Trimmed to top {max_pairs} pairs")
+
         self.save()
         return self.discovered
 

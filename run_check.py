@@ -42,10 +42,27 @@ def check_kraken():
 def check_db():
     try:
         db.save_position("TESTPAIR", 1.23, 0.001)
-        pos = db.load_positions()
+        positions = db.load_positions()
+        if isinstance(positions, dict):
+            found = "TESTPAIR" in positions
+        else:
+            found = any(p["pair"] == "TESTPAIR" for p in positions)
+        if not found:
+            print("[DB FAIL] TESTPAIR not found after save.")
+            return False
         db.remove_position("TESTPAIR")
-        return "TESTPAIR" not in pos
-    except Exception:
+        positions = db.load_positions()
+        if isinstance(positions, dict):
+            still_exists = "TESTPAIR" in positions
+        else:
+            still_exists = any(p["pair"] == "TESTPAIR" for p in positions)
+        if still_exists:
+            print("[DB FAIL] TESTPAIR still present after remove.")
+            return False
+        print("[OK] DB read/write/remove working.")
+        return True
+    except Exception as e:
+        print(f"[DB EXCEPTION] {e}")
         return False
 
 def check_model():

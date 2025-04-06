@@ -18,7 +18,6 @@
     "max_open_positions": 4,
     "min_confidence": 0.75,
     "bot_enabled": true,
-    "trade_live": true,
     "hourly_pl_report": true
   },
   "trading_rules": {

@@ -11,12 +11,14 @@ import traceback
 from pathlib import Path
 from config import Config
 from database import Database
+from kraken_api import KrakenClient
 
 import torch
 import talib
 import krakenex
 
 config = Config()
+kraken = KrakenClient()
 db = Database()
 
 CONFIG_PATH = "config.json"
@@ -43,8 +45,8 @@ def check_talib():
 
 def check_kraken_api(api_key, api_secret):
     try:
-        k = krakenex.API(key=api_key, secret=api_secret)
-        return k.query_private('Balance').get('error') == []
+        balance = kraken.get_balance()
+        return isinstance(balance, dict) and bool(balance)
     except Exception:
         return False
 
@@ -81,26 +83,37 @@ def check_discovered_pairs_exists():
 
 def check_db_rwv():
     try:
-        db.save_position("PRECHECK_PAIR", 123.45, 0.1)
-        loaded = db.load_positions()
-        db.remove_position("PRECHECK_PAIR")
-        if "PRECHECK_PAIR" in loaded:
-            print("[FAIL] DB test write/read/remove failed")
+        db.save_position("TESTPAIR", 1.23, 0.001)
+        positions = db.load_positions()
+        if isinstance(positions, list):
+            found = any(p.get("pair") == "TESTPAIR" for p in positions)
+        else:
+            found = "TESTPAIR" in positions
+        if not found:
+            print("[DB FAIL] TESTPAIR not found after save.")
             return False
-        print("[OK] DB read/write working")
+        db.remove_position("TESTPAIR")
+        positions = db.load_positions()
+        if isinstance(positions, list):
+            still_exists = any(p.get("pair") == "TESTPAIR" for p in positions)
+        else:
+            still_exists = "TESTPAIR" in positions
+        if still_exists:
+            print("[DB FAIL] TESTPAIR still present after remove.")
+            return False
+        print("[OK] DB read/write/remove working.")
         return True
     except Exception as e:
-        print(f"[FAIL] DB access error: {e}")
+        print(f"[DB EXCEPTION] {e}")
         return False
 
 def check_telegram(bot_token, chat_id):
+    token = config.get("telegram.bot_token")
+    chat_id = config.get("telegram.chat_id")
+    url = f"https://api.telegram.org/bot{token}/sendMessage"
     try:
-        resp = requests.get(
-            f"https://api.telegram.org/bot{bot_token}/sendMessage",
-            params={"chat_id": chat_id, "text": "✅ Precheck: Telegram is working."},
-            timeout=10
-        )
-        return resp.status_code == 200
+        resp = requests.post(url, data={"chat_id": chat_id, "text": "✅ Telegram check passed!"}, timeout=10)
+        return resp.ok
     except Exception:
         return False
 
@@ -137,7 +150,6 @@ def run_precheck():
         "Check Model": check_model_exists(),
         "Check Discovery": check_discovered_pairs_exists(),
         "Check DB RWV": check_db_rwv()
-
     }
 
     for k, v in results.items():

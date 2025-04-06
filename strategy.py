@@ -39,12 +39,13 @@ class TradeStrategy:
         self.open_positions = db.load_positions()
         self.ai_scores = defaultdict(float)
         self.last_pair_trade_time = {}  # pair: timestamp
-        self.pair_trade_cooldown = config.get("pair_trade_cooldown_sec", 3600)
+        self.pair_trade_cooldown = config.get("strategy.pair_trade_cooldown_sec", 3600)
         self.discovery_path = Path("data/discovered_pairs.json")
         self.discovery_interval = config.get("discovery.interval_hours", 4)
         self.trade_history_path = Path("data/trade_history.json")
         self.trade_history_archive_dir = Path("data/trade_history_archive")
         self.trade_history = self.load_trade_history()
+        self.initial_budget = config.get("strategy.initial_budget_gbp", 1000)
 
         try:
             with open("data/discovered_pairs.json") as f:
@@ -52,7 +53,7 @@ class TradeStrategy:
             self.model_version = self.discovered_data.get("model_version", "unknown")
             self.discovered_pairs = {
                 pair for pair, score in self.discovered_data.get("pairs", {}).items()
-                if score >= config.get("min_confidence", 0.8)
+                if score >= config.get("strategy.min_confidence", 0.8)
             }
         except Exception as e:
             print(f"[WARN] Couldn't load discovered pairs: {e}")
@@ -63,12 +64,16 @@ class TradeStrategy:
         self.focus_pairs = set(FOCUS_PAIRS) | self.discovered_pairs
         print(f"[STRATEGY] Pairs to evaluate: {sorted(self.focus_pairs)}")
 
-        if self.should_refresh_discovery():
-            from discovery import PairDiscovery
-            discovery = PairDiscovery()
-            discovery.get_eligible_pairs()
-            print("[DISCOVERY] Discovery refreshed due to interval.")
-
+        if config.get("discovery.enabled", True):
+            if self.should_refresh_discovery():
+                from discovery import PairDiscovery
+                discovery = PairDiscovery()
+                discovery.get_eligible_pairs()
+                print("[DISCOVERY] Discovery refreshed due to interval.")
+            else:
+                print("[DISCOVERY] Skipped: interval not reached.")
+        else:
+            print("[DISCOVERY] Skipped: discovery.enabled = false")
 
         # Auto-clean stale paper trades if switching to live
         if not PAPER_MODE:
@@ -313,14 +318,21 @@ class TradeStrategy:
 
         if should_exit:
             if PAPER_MODE:
-                log_trade(pair, "sell", vol, current_price)
-                paper_sell_notification(USER, pair, vol, current_price, reason, priority="high")
-                self.log_trade_profit(pair, entry_price, current_price, vol, reason)
+                try:
+                    log_trade(pair, "sell", vol, current_price)
+                    paper_sell_notification(USER, pair, vol, current_price, reason, priority="high")
+                    self.log_trade_profit(pair, entry_price, current_price, vol, reason)
+                except Exception as e:
+                    print(f"[ERROR] Paper trade failed for {pair}: {e}")
             else:
                 leverage = LEVERAGE_BY_PAIR.get(pair.upper()) if MARGIN_ENABLED else None
-                result = kraken.place_order(pair, side="sell", volume=vol, leverage=leverage, reduce_only=bool(leverage))
-                log_trade(pair, "sell", vol, current_price)
-                sell_order_notification(USER, pair, vol, current_price, reason, result, priority="high")
+                try:
+                    result = kraken.place_order(pair, side="sell", volume=vol, leverage=leverage, reduce_only=bool(leverage))
+                    log_trade(pair, "sell", vol, current_price)
+                    sell_order_notification(USER, pair, vol, current_price, reason, result, priority="high")
+                except Exception as e:
+                    print(f"[ERROR] Failed to place SELL order for {pair}: {e}")
+                    result = None
                 self.log_trade_profit(pair, entry_price, current_price, vol, reason)
             del self.open_positions[pair]
             db.remove_position(pair)
@@ -352,10 +364,13 @@ class TradeStrategy:
         today = datetime.utcnow().strftime("%Y-%m-%d")
         rows = db.get_all_trades()
         daily_trades = [r for r in rows if r['timestamp'].startswith(today)]
-
         buy_count = sum(1 for r in daily_trades if r['type'] == 'buy')
         sell_count = sum(1 for r in daily_trades if r['type'] == 'sell')
+        current_gbp = kraken.get_balance().get("ZGBP", 0)
+        net_profit = float(current_gbp) - self.initial_budget
         profit = 0.0
+
+        print(f"[STRATEGY] Net profit since start: £{net_profit:.2f}")
 
         for r in daily_trades:
             if r['type'] == 'sell':
