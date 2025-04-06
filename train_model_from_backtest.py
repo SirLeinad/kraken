@@ -4,7 +4,6 @@ from pathlib import Path
 from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
-
 from utils.data_loader import load_ohlcv_csv
 from feature_engineering import engineer_features_from_ohlcv
 from database import Database
