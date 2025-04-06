@@ -16,11 +16,12 @@ db = Database()
 def load_all_training_data():
     ohlcv_dir = Path("data/ohlcv")
     X_all, y_all = [], []
+    skipped_files = []
 
-    for file in ohlcv_dir.glob("*.csv"):
+    for file in ohlcv_dir.glob("*_1.csv"):  # ONLY 1-minute interval
         try:
             pair = file.stem.split("_")[0]
-            df = load_ohlcv_csv(pair, timeframe="1m")
+            df = pd.read_csv(file)
             X, y = engineer_features_from_ohlcv(df)
 
             if not X.empty and not y.empty:
@@ -30,13 +31,18 @@ def load_all_training_data():
             else:
                 print(f"[WARN] {pair}: no data or empty features")
         except Exception as e:
-            print(f"[SKIP] {file.name}: {e}")
+            skipped_files.append((file.name, str(e)))
+
+    if skipped_files:
+        print(f"[SKIP] {len(skipped_files)} files skipped due to errors.")
+        with open("skipped_files.log", "w") as logf:
+            for fname, err in skipped_files:
+                logf.write(f"{fname} -> {err}\n")
 
     if not X_all:
         raise ValueError("❌ No valid training data loaded from ohlcv folder.")
 
     return pd.concat(X_all, ignore_index=True), pd.concat(y_all, ignore_index=True)
-
 
 def train_model():
     print(f"[TRAIN] Starting model training for {MODEL_VERSION}...")
