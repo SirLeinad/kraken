@@ -43,7 +43,7 @@ class Config:
             return json.load(f)
 
     def set(self, key: str, value):
-        if key in self._config:
+        if key in self.config:
             self.config[key] = value
         else:
             print(f"[CONFIG] Set new key: {key}")
@@ -57,7 +57,7 @@ class Config:
 
     @property
     def telegram(self):
-        return self._config.get("telegram", {})
+        return self.config.get("telegram", {})
 
     @property
     def kraken(self):
