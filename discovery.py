@@ -6,6 +6,7 @@ from pathlib import Path
 from config import Config
 from train_pipeline import run_pipeline
 from kraken_api import KrakenClient  # Assumes this returns OHLCV DataFrame
+from utils.data_loader import load_ohlcv_csv
 
 class PairDiscovery:
     def __init__(self):
@@ -56,12 +57,13 @@ class PairDiscovery:
 
     def get_pair_volatility(self, pair):
         try:
-            df = KrakenClient.get_price_history(pair)  # Should return DataFrame with 'close'
-            returns = df['close'].pct_change().dropna()
+            df = load_ohlcv_csv(pair)
+            returns = df["close"].pct_change().dropna()
             return returns.std()
         except Exception as e:
-            print(f"[VOL] Error for {pair}: {e}")
+            print(f"[VOL] Error loading OHLC for {pair}: {e}")
             return None
+
 
     def save(self):
         data = {

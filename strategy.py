@@ -219,7 +219,8 @@ class TradeStrategy:
             notify(f"{USER}: Not enough GBP to trade {pair}. Remaining: £{gbp_balance:.2f}", key=f"nogbp_{pair}", priority="medium")
             return used_gbp
 
-        last_time = self.last_pair_trade_time.get(pair)
+        last_time = db.get_state(f"cooldown_{pair}")
+        last_time = float(last_time) if last_time else 0
         if last_time and (now - last_time) < self.pair_trade_cooldown:
             notify(f"{USER}: Skipping {pair} — trade cooldown active.", key=f"cooldown_{pair}", priority="low")
             return used_gbp
@@ -260,7 +261,7 @@ class TradeStrategy:
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
             meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
             log_trade(pair, "buy", vol, price, meta=meta)
-            self.last_pair_trade_time[pair] = time.time()
+            db.set_state(f"cooldown_{pair}", time())
             return used_gbp + alloc_gbp
 
     def check_stop_loss(self, pair):
@@ -332,7 +333,7 @@ class TradeStrategy:
                     sell_order_notification(USER, pair, vol, current_price, reason, result, priority="high")
                 except Exception as e:
                     print(f"[ERROR] Failed to place SELL order for {pair}: {e}")
-                    result = None
+                    result = {"error": str(e)}
                 self.log_trade_profit(pair, entry_price, current_price, vol, reason)
             del self.open_positions[pair]
             db.remove_position(pair)

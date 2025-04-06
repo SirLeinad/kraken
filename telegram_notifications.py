@@ -20,7 +20,7 @@ def notify(msg: str, key: str = None, priority: str = "medium"):
 
     now = time.time()
     if key:
-        last = last_sent.get(key, 0)
+        last = db.get_state(f"last_sent_{key}") or 0
         if priority == "high":
             pass  # always send
         elif priority == "medium" and now - last < MEDIUM_INTERVAL:
@@ -29,7 +29,7 @@ def notify(msg: str, key: str = None, priority: str = "medium"):
         elif priority == "low" and now - last < LOW_INTERVAL:
             print(f'[TELEGRAM] Skipped or failed: {msg}')
             return False
-        last_sent[key] = now
+        db.set_state(f"last_sent_{key}", now)
 
     try:
         print(f'[TELEGRAM] Sending: {msg}')

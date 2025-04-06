@@ -5,44 +5,45 @@ import os
 import json
 from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier
+from utils.data_loader import load_ohlcv_csv
 import joblib
 from config import Config
+from notifier import notify
+
 
 config = Config()
 USE_BACKTEST_TRAINING = config.get("train_from_backtest", default=False)
 
-def load_backtest_data(log_dir="logs"):
-    all = []
-    for f in os.listdir(log_dir):
-        if f.startswith("backtest_") and f.endswith(".csv"):
-            df = pd.read_csv(os.path.join(log_dir, f))
-            if "type" in df.columns and "price" in df.columns:
-                all.append(df)
-    return pd.concat(all, ignore_index=True) if all else pd.DataFrame()
-
-def engineer_features(df):
-    df['hour'] = pd.to_datetime(df['time']).dt.hour
-    df['weekday'] = pd.to_datetime(df['time']).dt.weekday
-    df['target'] = df['type'].map({'buy': 1, 'sell': 0})
+def engineer_features_from_ohlcv(df):
+    df["hour"] = df.index.hour
+    df["weekday"] = df.index.weekday
+    df["target"] = (df["close"].shift(-60) > df["close"]).astype(int)
     df = df.dropna()
-    features = df[['price', 'hour', 'weekday']]
-    labels = df['target']
-    return features, labels
+    X = df[["close", "hour", "weekday"]]
+    y = df["target"]
+    return X, y
 
-def train_model():
+def train_model(pair: str, notify_on_success: bool = True):
     if not USE_BACKTEST_TRAINING:
         print("⚠️ Backtest training is disabled in config.json. Enable 'train_from_backtest: true' to proceed.")
         return
 
-    df = load_backtest_data()
-    if df.empty:
-        print("No backtest trade data found.")
+    try:
+        df = load_ohlcv_csv("XBTGBP", timeframe="1m")  # Or loop multiple pairs
+    except Exception as e:
+        print(f"[TRAIN] Failed to load OHLCVT: {e}")
         return
 
-    X, y = engineer_features(df)
+    X, y = engineer_features_from_ohlcv(df)
     model = RandomForestClassifier(n_estimators=100, random_state=42)
-    model.fit(X, y)
-    print(f"✅ Model trained on {len(df)} entries and saved to models/ai_model.pkl")
+    model.fit(X_train, y_train)
+    score = model.score(X_test, y_test)
+
+    joblib.dump(model, f"models/{pair}_model.pkl")
+    if notify_on_success:
+        notify(f"{USER}: 🧠 New model trained for {pair}. Accuracy: {score:.2%}", priority="medium")
+
+    return model
 
 if __name__ == "__main__":
     train_model()

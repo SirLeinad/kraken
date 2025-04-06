@@ -8,6 +8,8 @@ from kraken_api import KrakenClient
 from ai_model import calculate_confidence
 from config import Config
 import matplotlib.pyplot as plt
+from utils.data_loader import load_ohlcv_csv
+
 
 kraken = KrakenClient()
 config = Config()
@@ -17,11 +19,14 @@ TAKE_PROFIT = config.get("strategy.take_profit_pct", default=0.05)
 BULL_THRESHOLD = config.get("strategy.bull_threshold", default=0.6)
 
 def fetch_ohlc(pair, interval=60, days=90):
-    ohlc = kraken.get_ohlc(pair, interval=interval)
-    ohlc['time'] = pd.to_datetime(ohlc['time'])
-    ohlc = ohlc.sort_values('time').set_index('time')
-    cutoff = (pd.Timestamp.utcnow() - pd.Timedelta(days=days)).replace(tzinfo=None)
-    return ohlc[ohlc.index >= cutoff].copy()
+    try:
+        df = load_ohlcv_csv(pair)
+        cutoff = (pd.Timestamp.utcnow() - pd.Timedelta(days=days)).replace(tzinfo=None)
+        return df[df.index >= cutoff]
+    except Exception as e:
+        print(f"[OHLC] Failed to load for {pair}: {e}")
+        return pd.DataFrame()
+
 
 
 def simulate_trades(pair, df):

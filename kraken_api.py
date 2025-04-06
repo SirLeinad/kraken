@@ -17,9 +17,6 @@ config = Config()
 warnings.filterwarnings("ignore", message="'T' is deprecated")
 
 class KrakenClient:
-    def get_trade_balance(self, asset="ZUSD"):
-        return self.api.query_private("TradeBalance", {"asset": asset})
-    
     def __init__(self):
         self.api = krakenex.API(
             key=config.get('kraken.api_key'),
@@ -36,6 +33,9 @@ class KrakenClient:
                 wait = PUBLIC_CALL_INTERVAL - diff
                 time.sleep(wait)
             _last_public_call = time.time()
+
+    def get_trade_balance(self, asset="ZUSD"):
+        return self.api.query_private("TradeBalance", {"asset": asset})
 
     def get_balance(self):
         response = self.api.query_private('Balance')
@@ -101,6 +101,21 @@ class KrakenClient:
         self._rate_limit()
         trades, _ = self.k.get_recent_trades(pair)
         return trades
+
+    def get_ohlcv(self, pair, interval=1, since=None):
+        url = "https://api.kraken.com/0/public/OHLC"
+        params = {"pair": pair, "interval": interval}
+        if since:
+            params["since"] = since
+        resp = requests.get(url, params=params).json()
+        data = resp["result"]
+        for key in data:
+            if key != "last":
+                df = pd.DataFrame(data[key],
+                    columns=["timestamp", "open", "high", "low", "close", "vwap", "volume", "count"])
+                df["timestamp"] = pd.to_datetime(df["timestamp"], unit="s")
+                df.set_index("timestamp", inplace=True)
+                return df[["open", "high", "low", "close", "volume", "count"]]
 
     def place_order(self, pair, side, volume, ordertype="market", leverage=None, reduce_only=False):
         order = {

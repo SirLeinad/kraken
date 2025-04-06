@@ -79,43 +79,45 @@ def cleanup_old_summaries():
 def run_bot():
     print('[INIT] Kraken AI bot starting...')
     global last_discovery, last_summary_date
-    if config.get("paper_trading") == True:
+
+    if config.get("paper_trading") is True:
         notify(f"{USER}: Kraken AI Bot started. Paper trading enabled.", key="startup", priority="high")
     else:
         notify(f"{USER}: Kraken AI Bot started. Live trading enabled.", key="startup", priority="high")
 
     while True:
+        start_time = time.time()
+
         try:
-            start_time = time.time()
-            try:
-                print('[LOOP] Executing strategy...')
-                strategy.execute()
-            except Exception as e:
-                print(f"[ERROR] strategy.execute failed: {e}")
+            print('[LOOP] Executing strategy...')
+            strategy.execute()
         except Exception as e:
             print(f"[ERROR] strategy.execute failed: {e}")
 
-    # Daily summary block
-    dt_now = datetime.datetime.now()
-    if dt_now.strftime("%H:%M") == config.summary_time:
-        try:
-            strategy.send_daily_summary()
-            archive_daily_summary()
-            export_trades_to_csv()
-            last_summary_date = dt_now.date()
-        except Exception as e:
-            notify(f"{USER}: Bot error occurred: {e}", key="error", priority="medium")
+        # Daily summary
+        dt_now = datetime.datetime.now()
+        if dt_now.strftime("%H:%M") == config.summary_time and dt_now.date() != last_summary_date:
+            try:
+                strategy.send_daily_summary()
+                archive_daily_summary()
+                export_trades_to_csv()
+                last_summary_date = dt_now.date()
+            except Exception as e:
+                notify(f"{USER}: Bot error occurred: {e}", key="error", priority="medium")
 
-    # Discovery every INTERVAL
-    now = time.time()
-    if now - last_discovery >= INTERVAL:
-        discovery.suggest_new_pairs()
-        last_discovery = now
+        # Discovery interval
+        now = time.time()
+        if now - last_discovery >= INTERVAL:
+            try:
+                discovery.suggest_new_pairs()
+                last_discovery = now
+            except Exception as e:
+                print(f"[ERROR] Discovery failed: {e}")
 
-    # Delay until next tick
-    elapsed = time.time() - start_time
-    delay = max(120 - elapsed, 60)
-    time.sleep(delay)
+        # Delay to keep loop at ~120s, minimum 60s
+        elapsed = time.time() - start_time
+        delay = max(120 - elapsed, 60)
+        time.sleep(delay)
 
 if __name__ == '__main__':
     run_bot()
