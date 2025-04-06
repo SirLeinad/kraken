@@ -1,55 +1,76 @@
-# File: train_model_from_backtest.py
-
 import pandas as pd
-import os
-import json
+import joblib
+from pathlib import Path
 from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.model_selection import train_test_split
+
 from utils.data_loader import load_ohlcv_csv
-import joblib
-from config import Config
-from notifier import notify
+from feature_engineering import engineer_features_from_ohlcv
 from database import Database
 
+MODEL_VERSION = "v1.0"
+MODEL_PATH = f"models/model_{MODEL_VERSION}.pkl"
 
-config = Config()
-USE_BACKTEST_TRAINING = config.get("train_from_backtest", default=False)
+db = Database()
 
-def engineer_features_from_ohlcv(df):
-    df["hour"] = df.index.hour
-    df["weekday"] = df.index.weekday
-    df["target"] = (df["close"].shift(-60) > df["close"]).astype(int)
-    df = df.dropna()
-    X = df[["close", "hour", "weekday"]]
-    y = df["target"]
-    return X, y
+def load_all_training_data():
+    ohlcv_dir = Path("data/ohlcv")
+    X_all, y_all = [], []
 
-def train_model(pair: str, notify_on_success: bool = True):
-    db = Database()
-    if not USE_BACKTEST_TRAINING:
-        print("⚠️ Backtest training is disabled in config.json. Enable 'train_from_backtest: true' to proceed.")
-        return
+    for file in ohlcv_dir.glob("*.csv"):
+        try:
+            pair = file.stem.split("_")[0]
+            df = load_ohlcv_csv(pair, timeframe="1m")
+            X, y = engineer_features_from_ohlcv(df)
 
-    try:
-        df = load_ohlcv_csv("XBTGBP", timeframe="1m")  # Or loop multiple pairs
-    except Exception as e:
-        print(f"[TRAIN] Failed to load OHLCVT: {e}")
-        return
+            if not X.empty and not y.empty:
+                X_all.append(X)
+                y_all.append(y)
+                print(f"[LOAD] {pair}: {len(X)} samples")
+            else:
+                print(f"[WARN] {pair}: no data or empty features")
+        except Exception as e:
+            print(f"[SKIP] {file.name}: {e}")
 
-    X, y = engineer_features_from_ohlcv(df)
+    if not X_all:
+        raise ValueError("❌ No valid training data loaded from ohlcv folder.")
+
+    return pd.concat(X_all, ignore_index=True), pd.concat(y_all, ignore_index=True)
+
+
+def train_model():
+    print(f"[TRAIN] Starting model training for {MODEL_VERSION}...")
+
+    X, y = load_all_training_data()
+    X_train, X_test, y_train, y_test = train_test_split(
+        X, y, test_size=0.2, random_state=42
+    )
+
     model = RandomForestClassifier(n_estimators=100, random_state=42)
     model.fit(X_train, y_train)
     score = model.score(X_test, y_test)
 
-    db.set_state(f"model_{pair}_score", round(score, 4))
-    db.set_state(f"model_{pair}_trained_at", datetime.utcnow().isoformat())
-    print(f"[MODEL] {pair} trained → accuracy={score:.2%}")
+    # Save model file
+    joblib.dump(model, MODEL_PATH)
+    print(f"[SAVE] Trained model saved: {MODEL_PATH} (acc={score:.2%})")
 
-    joblib.dump(model, f"models/{pair}_model.pkl")
-    if notify_on_success:
-        notify(f"{USER}: 🧠 New model trained for {pair}. Accuracy: {score:.2%}", priority="medium")
+    # DB metadata
+    db.set_state("model_version", MODEL_VERSION)
+    db.set_state("model_accuracy", round(score, 4))
+    db.set_state("model_trained_at", datetime.utcnow().isoformat())
+
+    # Optional: write JSON metadata too
+    meta_path = Path("models/model_meta.json")
+    meta_path.write_text(str({
+        "version": MODEL_VERSION,
+        "trained_at": datetime.utcnow().isoformat(),
+        "accuracy": round(score, 4),
+        "samples": len(X)
+    }))
 
     return model
+
 
 if __name__ == "__main__":
     train_model()
