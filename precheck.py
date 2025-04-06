@@ -9,10 +9,15 @@ import time
 import traceback
 
 from pathlib import Path
+from config import Config
+from database import Database
 
 import torch
 import talib
 import krakenex
+
+config = Config()
+db = Database()
 
 CONFIG_PATH = "config.json"
 
@@ -41,6 +46,51 @@ def check_kraken_api(api_key, api_secret):
         k = krakenex.API(key=api_key, secret=api_secret)
         return k.query_private('Balance').get('error') == []
     except Exception:
+        return False
+
+def check_config_keys():
+    required = [
+        "kraken.api_key", "kraken.api_secret",
+        "telegram.bot_token", "telegram.chat_id",
+        "strategy.stop_loss_pct", "strategy.take_profit_pct",
+        "strategy.buy_allocation_pct", "strategy.exit_below_ai_score",
+        "trading_rules.focus_pairs"
+    ]
+    for key in required:
+        if config.get(key) is None:
+            print(f"[FAIL] Missing config key: {key}")
+            return False
+    print("[OK] All required config keys")
+    return True
+
+def check_model_exists():
+    model_path = Path("models/model_v1.0.pkl")
+    if not model_path.exists():
+        print("[FAIL] AI model file not found")
+        return False
+    print("[OK] AI model file found")
+    return True
+
+def check_discovered_pairs_exists():
+    path = Path("data/discovered_pairs.json")
+    if not path.exists() or path.stat().st_size == 0:
+        print("[FAIL] Discovery file missing or empty")
+        return False
+    print("[OK] Discovery file found")
+    return True
+
+def check_db_rwv():
+    try:
+        db.save_position("PRECHECK_PAIR", 123.45, 0.1)
+        loaded = db.load_positions()
+        db.remove_position("PRECHECK_PAIR")
+        if "PRECHECK_PAIR" in loaded:
+            print("[FAIL] DB test write/read/remove failed")
+            return False
+        print("[OK] DB read/write working")
+        return True
+    except Exception as e:
+        print(f"[FAIL] DB access error: {e}")
         return False
 
 def check_telegram(bot_token, chat_id):
@@ -77,12 +127,17 @@ def run_precheck():
         "CUDA GPU Available": check_gpu() or "CPU fallback",
         "TA-Lib Installed": check_talib(),
         "Kraken API Access": check_kraken_api(
-            config['kraken']['api_key'], config['kraken']['api_secret']
+            config.get("kraken.api_key"), config.get("kraken.api_secret")
         ),
         "Telegram Messaging": check_telegram(
-            config['telegram']['bot_token'], config['telegram']['chat_id']
+            config.get("telegram.bot_token"), config.get("telegram.chat_id")
         ),
-        "SQLite Database RW": check_sqlite()
+        "SQLite Database RW": check_sqlite(),
+        "Config Keys": check_config_keys(),
+        "Check Model": check_model_exists(),
+        "Check Discovery": check_discovered_pairs_exists(),
+        "Check DB RWV": check_db_rwv()
+
     }
 
     for k, v in results.items():

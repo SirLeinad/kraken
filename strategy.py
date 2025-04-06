@@ -3,7 +3,7 @@
 import os
 import json
 import pandas as pd
-from kraken_api import KrakenClient, get_price_history
+from kraken_api import KrakenClient
 from config import Config
 from telegram_notifications import *
 from database import Database
@@ -20,7 +20,6 @@ from logger import log_trade_result
 config = Config()
 kraken = KrakenClient()
 db = Database()
-self.kraken = kraken
 
 FOCUS_PAIRS = config.get("trading_rules.focus_pairs")
 STOP_LOSS = config.get('strategy.stop_loss_pct')
@@ -337,7 +336,7 @@ class TradeStrategy:
 
     def get_dynamic_thresholds(self, pair):
         try:
-            df = get_price_history(pair)
+            df = KrakenClient.get_price_history(pair)
             vol = df["close"].pct_change().std()
             if vol is None:
                 raise ValueError("No volatility")
@@ -452,7 +451,6 @@ class TradeStrategy:
             report.append(f"\n💰 GBP:   £{gbp_spot:>8.2f} (spot) / £{gbp_margin:>8.2f} (margin)")
             report.append(f"💵 USD:   ${usd_spot:>8.2f} (spot) / ${usd_margin:>8.2f} (margin)")
             report.append(f"💶 EUR:   €{eur_spot:>8.2f} (spot) / €{eur_margin:>8.2f} (margin)")
-            # Inject live balance snapshot
             balance = kraken.get_balance()
 
             # AI Top Score Summary
