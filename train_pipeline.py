@@ -1,6 +1,7 @@
 # File: train_pipeline.py
 
 import subprocess
+from database import Database
 from datetime import datetime
 from config import Config
 from telegram_notifications import *
@@ -12,6 +13,7 @@ from pathlib import Path
 Path("models").mkdir(exist_ok=True)
 joblib.dump(train_model(), "models/model_v1.0.pkl")
 
+db = Database()
 config = Config()
 
 FOCUS_PAIRS = config.get("trading_rules.focus_pairs", default=[])
@@ -33,6 +35,7 @@ def main():
             log.write(f"\n[{datetime.utcnow().isoformat()}] Training model...\n")
         print('[PIPELINE] Training model from backtests...')
         train_model()
+        db.set_state("model_last_trained", datetime.utcnow().isoformat())
         notify("📡 AI Model retrained successfully from backtest data.", key="retrain", priority="low")
 
 def run_pipeline(conf_threshold=0.8):
