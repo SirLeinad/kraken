@@ -1,4 +1,4 @@
-# File: backtest_simulator.py
+# File: backtest_simulator.py (Upgraded with live trade simulation)
 
 import argparse
 import pandas as pd
@@ -12,71 +12,84 @@ import matplotlib.pyplot as plt
 kraken = KrakenClient()
 config = Config()
 
-STOP_LOSS = config.strategy['stop_loss_pct']
-TAKE_PROFIT = config.strategy.get('take_profit_pct', 0.05)
-BULL_THRESHOLD = config.strategy['bull_threshold']
+STOP_LOSS = config.get("strategy.stop_loss_pct", default=0.02)
+TAKE_PROFIT = config.get("strategy.take_profit_pct", default=0.05)
+BULL_THRESHOLD = config.get("strategy.bull_threshold", default=0.6)
 
 def fetch_ohlc(pair, interval=60, days=90):
     ohlc = kraken.get_ohlc(pair, interval=interval)
-    cutoff = pd.Timestamp.utcnow() - pd.Timedelta(days=days)
-    return ohlc[ohlc['time'] >= cutoff].copy()
+    ohlc['time'] = pd.to_datetime(ohlc['time'])
+    ohlc = ohlc.sort_values('time').set_index('time')
+    cutoff = (pd.Timestamp.utcnow() - pd.Timedelta(days=days)).replace(tzinfo=None)
+    return ohlc[ohlc.index >= cutoff].copy()
+
 
 def simulate_trades(pair, df):
-    balance = 1000.0  # starting GBP
+    balance = 1000.0
     positions = []
     trades = []
 
     for i in range(30, len(df)):
-        window = df.iloc[i-30:i].copy()
+        window = df.iloc[i - 30:i].copy()
         current = df.iloc[i]
         price = current['close']
-
         score = calculate_confidence(pair)
+
         if positions:
             entry = positions[-1]
-            change = (price - entry['price']) / entry['price']
-            if change <= -STOP_LOSS:
-                trades.append({'time': current['time'], 'pair': pair, 'type': 'sell', 'price': price, 'profit': balance * change})
-                balance += balance * change
-                positions = []
-            elif change >= TAKE_PROFIT:
-                trades.append({'time': current['time'], 'pair': pair, 'type': 'sell', 'price': price, 'profit': balance * change})
-                balance += balance * change
-                positions = []
-        else:
-            if score >= BULL_THRESHOLD:
-                trades.append({'time': current['time'], 'pair': pair, 'type': 'buy', 'price': price})
-                positions.append({'price': price, 'time': current['time']})
+            entry_price = entry['price']
+            change = (price - entry_price) / entry_price
+            if change >= TAKE_PROFIT or change <= -STOP_LOSS or score < BULL_THRESHOLD:
+                pnl = (price - entry_price) * entry['volume']
+                balance += pnl
+                trades.append({"buy": entry_price, "sell": price, "pnl": pnl, "score": score})
+                positions.pop()
+
+        if not positions and score >= BULL_THRESHOLD:
+            volume = balance * 0.1 / price
+            positions.append({"price": price, "volume": volume})
+            balance -= volume * price
 
     return trades, balance
 
+
+def plot_trades(trades):
+    if not trades:
+        print("[BACKTEST] No trades executed.")
+        return
+
+    cum_pnl = np.cumsum([t['pnl'] for t in trades])
+    plt.plot(cum_pnl, label="Cumulative P&L")
+    plt.title("Trade Backtest Result")
+    plt.xlabel("Trade Index")
+    plt.ylabel("Cumulative Profit (GBP)")
+    plt.grid()
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig("logs/backtest_pnl.png")
+    print("[BACKTEST] P&L graph saved to logs/backtest_pnl.png")
+
 def run_backtest(pair):
-    print(f"⏳ Fetching 90d OHLC for {pair}...")
     df = fetch_ohlc(pair)
-    print(f"📊 Loaded {len(df)} candles")
+    if df.empty:
+        print(f"[BACKTEST] No OHLC data for {pair}")
+        return None
 
-    trades, final_balance = simulate_trades(pair, df)
-    trade_log = pd.DataFrame(trades)
-    roi = (final_balance - 1000) / 1000
-
-    print(f"✅ Backtest complete: Final Balance £{final_balance:.2f}, ROI: {roi:.2%}, Trades: {len(trade_log)}")
-    trade_log.to_csv(f"logs/backtest_{pair}_{datetime.utcnow().date()}.csv", index=False)
-
-    if not trade_log.empty:
-        trade_log['time'] = pd.to_datetime(trade_log['time'])
-        buy_prices = trade_log[trade_log['type'] == 'buy']['price'].values
-        sell_prices = trade_log[trade_log['type'] == 'sell']['price'].values
-        plt.plot(df['time'], df['close'], label='Price')
-        for buy in buy_prices:
-            plt.axhline(buy, color='green', linestyle='--', alpha=0.3)
-        for sell in sell_prices:
-            plt.axhline(sell, color='red', linestyle='--', alpha=0.3)
-        plt.title(f"{pair} Price with Trades")
-        plt.legend()
-        plt.show()
+    score = calculate_confidence(pair)
+    print(f"[BACKTEST] AI score for {pair}: {score:.2f}")
+    return pair, score
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-    parser.add_argument("--pair", required=True, help="Kraken trading pair like XBTGBP")
+    parser.add_argument("--pair", required=True)
     args = parser.parse_args()
-    run_backtest(args.pair)
+
+    print(f"⏳ Fetching OHLC for {args.pair}...")
+    df = fetch_ohlc(args.pair)
+    if df.empty:
+        print("[BACKTEST] No OHLC data available.")
+        exit(1)
+
+    trades, final_balance = simulate_trades(args.pair, df)
+    print(f"[BACKTEST] Final balance: £{final_balance:.2f} | Trades: {len(trades)}")
+    plot_trades(trades)

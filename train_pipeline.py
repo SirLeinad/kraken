@@ -5,16 +5,19 @@ from datetime import datetime
 from config import Config
 from telegram_notifications import *
 from train_model_from_backtest import train_model
+from backtest_simulator import run_backtest
 import joblib
+from pathlib import Path
+
+Path("models").mkdir(exist_ok=True)
 joblib.dump(train_model(), "models/model_v1.0.pkl")
 
 config = Config()
 
-FOCUS_PAIRS = config.strategy['focus_pairs']
+FOCUS_PAIRS = config.get("trading_rules.focus_pairs", default=[])
 LOGFILE = "logs/train_pipeline.log"
 
-def print('[PIPELINE] Running backtests...')
-    run_backtests():
+def run_backtests():
     with open(LOGFILE, "a") as log:
         log.write(f"\n[{datetime.utcnow().isoformat()}] Starting backtests...\n")
         for pair in FOCUS_PAIRS:
@@ -32,26 +35,19 @@ def main():
         train_model()
         notify("📡 AI Model retrained successfully from backtest data.", key="retrain", priority="low")
 
-if __name__ == "__main__":
-    run_pipeline()
-
 def run_pipeline(conf_threshold=0.8):
-    from backtest_pipeline import run_backtest
-    raw_results = run_backtest()  # Expected: list of (pair, score)
+    focus = FOCUS_PAIRS
+    results = {}
 
-    tradeables = {}
-    for item in raw_results:
-        if not isinstance(item, (list, tuple)) or len(item) != 2:
-            print(f"[PIPELINE] Skipping malformed result: {item}")
-            continue
-        pair, score = item
-        if isinstance(pair, str) and isinstance(score, (float, int)) and score >= conf_threshold:
-            tradeables[pair] = score
-        else:
-            print(f"[PIPELINE] Invalid score or pair format: {item}")
+    for pair in focus:
+        print(f"[PIPELINE] Running backtest for {pair}...")
+        result = run_backtest(pair)
+        if isinstance(result, tuple) and result[1] >= conf_threshold:
+            results[result[0]] = result[1]
 
-    print(f"[PIPELINE] Selected pairs: {tradeables}")
-    return tradeables
+    if not results:
+        print("[PIPELINE] No pairs passed the threshold.")
+    return results
 
 def load_trade_history_for_training():
     try:
@@ -68,5 +64,8 @@ def load_trade_history_for_training():
     except Exception as e:
         print(f"[TRAIN] Failed to load trade history: {e}")
         return []
-    # do not use in strategy, logger or telegram_bot.
-    # Usage python train_pipeline.py
+
+if __name__ == "__main__":
+    run_pipeline()
+# do not use in strategy, logger or telegram_bot.
+# Usage python train_pipeline.py

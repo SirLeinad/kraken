@@ -21,9 +21,9 @@ config = Config()
 kraken = KrakenClient()
 db = Database()
 
-FOCUS_PAIRS = config.strategy['focus_pairs']
+FOCUS_PAIRS = config.get("trading_rules.focus_pairs")
 STOP_LOSS = config.strategy['stop_loss_pct']
-EXCLUDED = set(config.strategy['excluded_pairs'])
+EXCLUDED = config.get("tradingr_ules.excluded_pairs")
 USER = config.user
 PAPER_MODE = config.paper_trading
 MARGIN_ENABLED = config.margin.get('enabled', False)
@@ -42,18 +42,23 @@ class TradeStrategy:
         self.pair_trade_cooldown = config.get("pair_trade_cooldown_sec", 3600)
         self.discovery_path = Path("data/discovered_pairs.json")
         self.discovery_interval = config.get("discovery.interval_hours", 4)
-        self.model_version = self.discovered_data.get("model_version", "unknown")
+        self.trade_history_path = Path("data/trade_history.json")
+        self.trade_history_archive_dir = Path("data/trade_history_archive")
+        self.trade_history = self.load_trade_history()
 
         try:
             with open("data/discovered_pairs.json") as f:
-                data = json.load(f)
-                self.discovered_pairs = {
-                    pair for pair, score in data.get("pairs", {}).items()
-                    if score >= config.get("min_confidence", 0.8)
-                }
+                self.discovered_data = json.load(f)
+            self.model_version = self.discovered_data.get("model_version", "unknown")
+            self.discovered_pairs = {
+                pair for pair, score in self.discovered_data.get("pairs", {}).items()
+                if score >= config.get("min_confidence", 0.8)
+            }
         except Exception as e:
             print(f"[WARN] Couldn't load discovered pairs: {e}")
+            self.model_version = "unknown"
             self.discovered_pairs = set()
+            self.discovered_data = {}
 
         self.focus_pairs = set(FOCUS_PAIRS) | self.discovered_pairs
         print(f"[STRATEGY] Pairs to evaluate: {sorted(self.focus_pairs)}")
@@ -323,6 +328,15 @@ class TradeStrategy:
             del self.open_positions[pair]
             db.remove_position(pair)
 
+            self.trade_history[pair] = {
+                "pnl": round((current_price - entry_price) * vol, 6),
+                "timestamp": datetime.utcnow().isoformat(),
+                "confidence": self.ai_scores.get(pair),
+                "model_version": self.model_version
+            }
+            self.save_trade_history()
+
+
     def get_dynamic_thresholds(self, pair):
         try:
             df = get_price_history(pair)
@@ -370,6 +384,37 @@ class TradeStrategy:
                     continue
 
         notify(f"{USER}:\n" + "\n".join(lines), key="daily_summary", priority="low")
+
+    def load_trade_history(self):
+        if self.trade_history_path.exists():
+            try:
+                with self.trade_history_path.open() as f:
+                    return json.load(f)
+            except:
+                print("[WARN] Failed to load trade history.")
+        return {}
+
+    def save_trade_history(self):
+        try:
+            self.archive_trade_history_if_old()
+            with self.trade_history_path.open("w") as f:
+                json.dump(self.trade_history, f, indent=2)
+        except Exception as e:
+            print(f"[WARN] Failed to save trade history: {e}")
+
+    def archive_trade_history_if_old(self):
+        if not self.trade_history_path.exists():
+            return
+
+        mtime = datetime.utcfromtimestamp(self.trade_history_path.stat().st_mtime)
+        if (datetime.utcnow() - mtime).days < 7:
+            return
+
+        self.trade_history_archive_dir.mkdir(parents=True, exist_ok=True)
+        ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+        archive_path = self.trade_history_archive_dir / f"trade_history_{ts}.json"
+        self.trade_history_path.rename(archive_path)
+        print(f"[ARCHIVE] Archived old trade history to {archive_path}")
 
     def execute(self):
         print('[STRATEGY] Starting trade checks...')

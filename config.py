@@ -6,8 +6,35 @@ from pathlib import Path
 CONFIG_PATH = Path("config.json")
 
 class Config:
-    def __init__(self):
-        self._config = self._load()
+    def __init__(self, path="config.json"):
+        with open(path) as f:
+            self.config = json.load(f)
+        self.validate_required_keys()
+
+    def get(self, dotted_key, default=None):
+        keys = dotted_key.split(".")
+        value = self.config
+        for k in keys:
+            if isinstance(value, dict) and k in value:
+                value = value[k]
+            else:
+                print(f"[CONFIG] Key '{dotted_key}' not found.")
+                return default
+        return value
+
+    def validate_required_keys(self):
+        required_keys = [
+            "strategy.min_confidence",
+            "strategy.stop_loss_pct",
+            "strategy.take_profit_pct",
+            "strategy.exit_below_ai_score",
+            "strategy.pair_trade_cooldown_sec",
+            "discovery.interval_hours",
+            "discovery.max_volatility"
+        ]
+        for key in required_keys:
+            if self.get(key, None) is None:
+                raise ValueError(f"[CONFIG] Required key missing or invalid: {key}")
 
     def _load(self):
         if not CONFIG_PATH.exists():
@@ -17,36 +44,16 @@ class Config:
 
     def set(self, key: str, value):
         if key in self._config:
-            self._config[key] = value
+            self.config[key] = value
         else:
             print(f"[CONFIG] Set new key: {key}")
-            self._config[key] = value
+            self.config[key] = value
         try:
             with open("config.json", "w") as f:
-                json.dump(self._config, f, indent=2)
+                json.dump(self.config, f, indent=2)
             print(f"[CONFIG] Updated {key} = {value}")
         except Exception as e:
             print(f"[CONFIG] Failed to persist config: {e}")
-
-    def get(self, *keys, default=None):
-        data = self._config
-
-        # Unpack dot notation: get("telegram.bot_token")
-        if len(keys) == 1 and isinstance(keys[0], str) and "." in keys[0]:
-            keys = keys[0].split(".")
-
-        for key in keys:
-            if isinstance(data, dict) and isinstance(key, str):
-                if key in data:
-                    data = data[key]
-                else:
-                    print(f"[CONFIG] Key '{key}' not found.")
-                    return default
-            else:
-                print(f"[CONFIG] Invalid key access: '{key}'")
-                return default
-
-        return data if data is not None else default
 
     @property
     def telegram(self):
@@ -54,24 +61,28 @@ class Config:
 
     @property
     def kraken(self):
-        return self._config.get("kraken", {})
+        return self.config.get("kraken", {})
 
     @property
     def strategy(self):
-        return self._config.get("strategy", {})
+        return self.config.get("strategy", {})
 
     @property
     def discovery(self):
-        return self._config.get("discovery", {})
+        return self.config.get("discovery", {})
 
     @property
     def margin(self):
-        return self._config.get("margin", {})
+        return self.config.get("margin", {})
 
     @property
     def paper_trading(self):
-        return self._config.get("paper_trading", False)
+        return self.config.get("paper_trading", False)
 
     @property
     def user(self):
-        return self._config.get("user", "Daniel")
+        return self.config.get("user", "Daniel")
+
+if __name__ == "__main__":
+    cfg = Config()
+    print("[TEST] trading_rules.focus_pairs →", cfg.get("trading_rules.focus_pairs", default=[]))

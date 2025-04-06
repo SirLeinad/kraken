@@ -6,12 +6,15 @@ from config import Config
 import warnings
 import time
 import threading
+import requests
+import pandas as pd
 
 PUBLIC_CALL_INTERVAL = 1.1
 _last_public_call = 0
 _lock = threading.Lock()
 
 warnings.filterwarnings("ignore", message="'T' is deprecated")
+print("[DEBUG] kraken_api.py loaded")
 
 config = Config()
 
@@ -61,6 +64,26 @@ class KrakenClient:
             }
         }
 
+    def get_price_history(pair: str, interval: int = 60, since: int = None) -> pd.DataFrame:
+        url = "https://api.kraken.com/0/public/OHLC"
+        params = {"pair": pair, "interval": interval}
+        if since:
+            params["since"] = since
+
+        response = requests.get(url, params=params)
+        data = response.json()
+
+        if not data.get("result"):
+            raise ValueError("Invalid response from Kraken")
+
+        key = next(k for k in data["result"] if k != "last")
+        ohlcv = data["result"][key]
+
+        df = pd.DataFrame(ohlcv, columns=["time", "open", "high", "low", "close", "vwap", "volume", "count"])
+        df["time"] = pd.to_datetime(df["time"], unit="s")
+        df = df.astype({"open": float, "high": float, "low": float, "close": float, "volume": float})
+
+        return df
 
     def get_ticker(self, pair):
         self._rate_limit()
