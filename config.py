@@ -11,16 +11,16 @@ class Config:
             self.config = json.load(f)
         self.validate_required_keys()
 
-    def get(self, dotted_key, default=None):
+    def get(self, dotted_key: str, default=None):
         keys = dotted_key.split(".")
-        value = self.config
+        val = self.config
         for k in keys:
-            if isinstance(value, dict) and k in value:
-                value = value[k]
+            if isinstance(val, dict) and k in val:
+                val = val[k]
             else:
                 print(f"[CONFIG] Key '{dotted_key}' not found.")
                 return default
-        return value
+        return val
 
     def validate_required_keys(self):
         required_keys = [

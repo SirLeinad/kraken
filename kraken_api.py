@@ -24,8 +24,8 @@ class KrakenClient:
     
     def __init__(self):
         self.api = krakenex.API(
-            key=config.kraken['api_key'],
-            secret=config.kraken['api_secret']
+            key=config.get['kraken.api_key'],
+            secret=config.get['kraken.api_secret']
         )
         self.k = KrakenAPI(self.api)
 

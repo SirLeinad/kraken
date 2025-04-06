@@ -37,7 +37,7 @@
     ]
   },
   "telegram_intervals": {
-    "medium_sec": 900,
+    "medium_sec": 1800,
     "low_sec": 3600
   },
   "discovery": {

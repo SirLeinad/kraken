@@ -12,7 +12,7 @@ from ai_model import calculate_confidence
 from collections import defaultdict
 from datetime import datetime
 from pathlib import Path
-from time import sleep
+from time import sleep, time
 from collections import defaultdict
 from datetime import datetime, timedelta
 from logger import log_trade_result
@@ -20,17 +20,18 @@ from logger import log_trade_result
 config = Config()
 kraken = KrakenClient()
 db = Database()
+self.kraken = kraken
 
 FOCUS_PAIRS = config.get("trading_rules.focus_pairs")
-STOP_LOSS = config.strategy['stop_loss_pct']
-EXCLUDED = config.get("tradingr_ules.excluded_pairs")
-USER = config.user
-PAPER_MODE = config.paper_trading
-MARGIN_ENABLED = config.margin.get('enabled', False)
-LEVERAGE_BY_PAIR = config.margin.get('leverage_by_pair', {})
-TAKE_PROFIT = config.strategy.get("take_profit_pct", 0.05)
-EXIT_AI_SCORE = config.strategy.get("exit_below_ai_score", 0.3)
-BUY_ALLOCATION_PCT = config.strategy.get("buy_allocation_pct", 0.2)
+STOP_LOSS = config.get['strategy.stop_loss_pct']
+EXCLUDED = config.get("trading_rules.excluded_pairs")
+USER = config.get("user")
+PAPER_MODE = config.get("paper_trading")
+MARGIN_ENABLED = config.get('margin.enabled', False)
+LEVERAGE_BY_PAIR = config.get('margin.leverage_by_pair', {})
+TAKE_PROFIT = config.get("strategy.take_profit_pct", 0.05)
+EXIT_AI_SCORE = config.get("strategy.exit_below_ai_score", 0.3)
+BUY_ALLOCATION_PCT = config.get("strategy.buy_allocation_pct", 0.2)
 SCORE_HISTORY_FILE = "logs/ai_scores_history.json"
 
 class TradeStrategy:
@@ -176,8 +177,6 @@ class TradeStrategy:
 
     def eligible_pairs(self):
         return [p for p in (set(FOCUS_PAIRS) | self.discovered_pairs) if p not in EXCLUDED]
-        return [p for p in (set(FOCUS_PAIRS) | self.discovered_pairs) if p not in EXCLUDED]
-        return [p for p in FOCUS_PAIRS if p not in EXCLUDED]
 
     def fetch_latest_price(self, pair):
         try:
@@ -193,7 +192,7 @@ class TradeStrategy:
         db_log = f"AI_SCORE|{pair}|{score:.4f}"
         with open("logs/ai_scores.log", "a") as f:
             f.write(f"{db_log}\n")
-        return score > config.strategy['bull_threshold']
+        return score > config.get['strategy.bull_threshold']
 
     def store_top_ai_scores(self):
         top_scores = sorted(self.ai_scores.items(), key=lambda x: x[1], reverse=True)[:5]
@@ -210,14 +209,13 @@ class TradeStrategy:
             json.dump(history[-100:], f, indent=2)
 
     def place_buy(self, pair, used_gbp):
+        now = time.time()
         gbp_balance = float(self.balance.get('ZGBP', 0.0)) - used_gbp
         if gbp_balance <= 10:
             notify(f"{USER}: Not enough GBP to trade {pair}. Remaining: £{gbp_balance:.2f}", key=f"nogbp_{pair}", priority="medium")
             return used_gbp
 
         last_time = self.last_pair_trade_time.get(pair)
-        now = time.time()
-
         if last_time and (now - last_time) < self.pair_trade_cooldown:
             notify(f"{USER}: Skipping {pair} — trade cooldown active.", key=f"cooldown_{pair}", priority="low")
             return used_gbp
@@ -228,7 +226,7 @@ class TradeStrategy:
         confidence = max(0.3, min(confidence, 0.95))  # clamp to range
 
         scaling_factor = (confidence - 0.3) / (0.95 - 0.3)  # map to 0–1 scale
-        alloc_pct = config.strategy.get("buy_allocation_pct", 0.10)
+        alloc_pct = config.get("strategy.buy_allocation_pct", 0.10)
         alloc_gbp = gbp_balance * (alloc_pct + scaling_factor * alloc_pct)
 
         print(f"[ALLOCATION] {pair} score={confidence:.2f} → allocation: {alloc_gbp:.2f}")
@@ -241,23 +239,22 @@ class TradeStrategy:
         existing_vol = self.open_positions.get(pair, {}).get("volume", 0)
         max_vol = (MAX_PAIR_EXPOSURE_GBP / price)
 
-        if len(self.open_positions) >= config.get("max_open_positions", 4):
+        if len(self.open_positions) >= config.get("strategy.max_open_positions", 4):
             notify(f"{USER}: Max open positions reached. Skipping {pair}.", key=f"maxpos_{pair}", priority="medium")
             return used_gbp
 
         if PAPER_MODE:
             self.open_positions[pair] = {'price': price, 'volume': vol}
+            buy_order_notification(USER, pair, vol, price, leverage, paper=PAPER_MODE, gbp_equivalent=alloc_gbp)
             db.save_position(pair, price, vol)
             meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
             log_trade(pair, "buy", vol, price, meta=meta)
-            buy_order_notification(USER, pair, vol, price, leverage, paper=True, gbp_equivalent=alloc_gbp)
         else:
             result = kraken.place_order(pair, side="buy", volume=vol, leverage=leverage)
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
             meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
             log_trade(pair, "buy", vol, price, meta=meta)
-            buy_order_notification(USER, pair, vol, price, leverage, result, gbp_equivalent=alloc_gbp)
             self.last_pair_trade_time[pair] = time.time()
             return used_gbp + alloc_gbp
 
@@ -464,7 +461,7 @@ class TradeStrategy:
             if any("✅ Buy" in r or "SELL" in r for r in report):
                 trade_report_notification(USER, report)
             
-            if config.strategy.get("hourly_pl_report", True) and self.open_positions:
+            if config.get("strategy.hourly_pl_report", True) and self.open_positions:
                 pl_lines = []
                 net_gain = 0.0
                 for pair, pos in self.open_positions.items():
