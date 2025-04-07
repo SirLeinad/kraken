@@ -12,6 +12,7 @@ from export_trades import export_trades_to_csv
 from database import Database
 import os
 import sys
+import threading
 
 config = Config()
 strategy = TradeStrategy()
@@ -28,6 +29,11 @@ last_summary_date = db.get_state("last_summary_date")
 SUMMARY_DIR = Path("summaries")
 SUMMARY_DIR.mkdir(exist_ok=True)
 MAX_SUMMARY_AGE_DAYS = int(config.get("summary_retention_days", default=14))
+
+def heartbeat():
+    while True:
+        print(f"[HEARTBEAT] Bot alive @ {datetime.datetime.now().isoformat()}")
+        time.sleep(60)
 
 def restart_bot():
     print("[RELOAD] Restarting bot...")
@@ -81,6 +87,8 @@ def cleanup_old_summaries():
 def run_bot():
     print('[INIT] Kraken AI bot starting...')
     global last_discovery, last_summary_date
+    
+    threading.Thread(target=heartbeat, daemon=True).start()
 
     if config.get("paper_trading") is True:
         notify(f"{USER}: Kraken AI Bot started. Paper trading enabled.", key="startup", priority="high")

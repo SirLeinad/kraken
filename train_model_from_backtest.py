@@ -108,10 +108,15 @@ def train_model():
     print("[INFO] Model training completed.")
     score = model.score(X_test, y_test)
 
-    # Save model file
-    print(f"[INFO] Training on: {model.get_params().get('device')}, Platform: {platform.system()}")
-    joblib.dump(model, MODEL_PATH)
-    print(f"[SAVE] Trained model saved: {MODEL_PATH} (acc={score:.2%})")
+    print("[SAVE] Dumping model...")
+    start = time.time()
+
+    try:
+        dump(model, "models/model_v1.0.pkl", compress=3)  # optional compression
+        print(f"[SAVE] Model dumped in {time.time() - start:.2f}s")
+    except Exception as e:
+        print(f"[ERROR] Failed to dump model: {e}")
+
 
     # DB metadata
     db.set_state("model_version", MODEL_VERSION)

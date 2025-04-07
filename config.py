@@ -8,7 +8,7 @@ CONFIG_PATH = Path("config.json")
 class Config:
     def __init__(self):
         with open("config.json") as f:
-            self.data = json.load(f)
+            self.config = json.load(f)
         self.validate_required_keys()
 
     def get(self, dotted_key: str, default=None):
