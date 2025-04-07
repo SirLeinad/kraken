@@ -32,7 +32,7 @@ class PairDiscovery:
 
         if last_run and (time() - float(last_run)) < interval:
             print("[DISCOVERY] Skipped: interval not reached.")
-            return {}
+            return []
 
         self.discovered = {}
         self.min_volume_gbp = self.config.get("discovery.min_volume_24h_gbp", 100000)

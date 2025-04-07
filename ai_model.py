@@ -47,9 +47,18 @@ def calculate_confidence(pair: str, interval: int = 60, window: int = 30) -> flo
 
         if USE_ML_MODEL and MODEL:
             from feature_engineering import compute_rsi, compute_sma
-            latest = df.iloc[-1]
-            latest["rsi"] = compute_rsi(df["close"]).iloc[-1]
-            latest["sma"] = compute_sma(df["close"]).iloc[-1]
+
+            if "close" not in df.columns:
+                print(f"[ERROR] Missing 'close' column for {pair}. Columns present: {df.columns.tolist()}")
+                return 0.0
+
+            try:
+                latest = df.iloc[-1].copy()
+                latest["rsi"] = compute_rsi(df["close"]).iloc[-1]
+                latest["sma"] = compute_sma(df["close"]).iloc[-1]
+            except Exception as e:
+                print(f"[ERROR] Feature computation failed for {pair}: {e}")
+                return 0.0
 
             features = pd.DataFrame([{
                 "rsi": latest["rsi"],
