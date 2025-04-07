@@ -6,6 +6,9 @@ def engineer_features_from_ohlcv(df):
     import warnings
     warnings.filterwarnings("ignore")
 
+    if df.empty or "close" not in df.columns:
+        raise ValueError("❌ Input OHLCV data missing 'close' column")
+
     features = {}
     errors = []
 
