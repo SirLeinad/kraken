@@ -8,7 +8,6 @@ from config import Config
 import warnings
 import joblib
 
-
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 config = Config()
@@ -47,12 +46,19 @@ def calculate_confidence(pair: str, interval: int = 60, window: int = 30) -> flo
             return 0.0
 
         if USE_ML_MODEL and MODEL:
+            from feature_engineering import compute_rsi, compute_sma
             latest = df.iloc[-1]
+            latest["rsi"] = compute_rsi(df["close"]).iloc[-1]
+            latest["sma"] = compute_sma(df["close"]).iloc[-1]
+
             features = pd.DataFrame([{
-                "price": latest["close"],
-                "hour": latest["time"].hour,
-                "weekday": latest["time"].weekday()
+                "rsi": latest["rsi"],
+                "sma": latest["sma"]
             }])
+
+            if pd.isna(latest["rsi"]) or pd.isna(latest["sma"]):
+                return 0.0
+
             proba = MODEL.predict_proba(features)[0][1]  # prob of buy
             return round(float(proba), 4)
 

@@ -1,8 +1,13 @@
 # File: main.py
-print("[DEBUG] main.py starting")
-
 import time
 import datetime
+import os
+import sys
+import threading
+
+print("[DEBUG] main.py starting")
+time.sleep(2)
+
 from pathlib import Path
 from config import Config
 from strategy import TradeStrategy
@@ -11,12 +16,13 @@ from telegram_notifications import *
 from dashboard import send_daily_summary, show_balance, show_open_positions, show_trade_history
 from export_trades import export_trades_to_csv
 from database import Database
-import os
-import sys
-import threading
 
 config = Config()
+
+print("[DEBUG] After notify, before strategy")
 strategy = TradeStrategy()
+print("[DEBUG] Strategy object created")
+
 discovery = PairDiscovery()
 db = Database()
 
@@ -120,7 +126,7 @@ def run_bot():
         now = time.time()
         if time.time() - last_discovery >= INTERVAL:
             try:
-                discovery.suggest_new_pairs()
+                PairDiscovery().get_eligible_pairs()
                 db.set_state("last_discovery", time.time())  # <-- This line updates DB
             except Exception as e:
                 print(f"[ERROR] Discovery failed: {e}")

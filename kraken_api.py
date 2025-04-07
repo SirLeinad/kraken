@@ -12,7 +12,10 @@ import pandas as pd
 PUBLIC_CALL_INTERVAL = 1.1
 _last_public_call = 0
 _lock = threading.Lock()
+
+print("[DEBUG] Initializing KrakenClient...")
 config = Config()
+print("[DEBUG] Config loaded.")
 
 warnings.filterwarnings("ignore", message="'T' is deprecated")
 

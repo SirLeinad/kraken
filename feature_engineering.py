@@ -44,3 +44,6 @@ def compute_rsi(df: pd.DataFrame, period: int = 14) -> pd.Series:
     loss = -delta.where(delta < 0, 0).rolling(window=period).mean()
     rs = gain / loss
     return 100 - (100 / (1 + rs))
+
+def compute_sma(close: pd.Series, period: int = 10) -> pd.Series:
+    return close.rolling(window=period).mean()

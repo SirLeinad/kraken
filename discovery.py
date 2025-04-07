@@ -34,14 +34,11 @@ class PairDiscovery:
             print("[DISCOVERY] Skipped: interval not reached.")
             return {}
 
-        self.discovered = {}  # <- just return empty if needed
-        print("[DISCOVERY] Skipping pipeline: disabled at startup.")
-        return self.discovered
-
-        
         self.discovered = {}
         self.min_volume_gbp = self.config.get("discovery.min_volume_24h_gbp", 100000)
         self.max_volatility = self.config.get("discovery.max_volatility", 0.15)
+
+        results = run_pipeline(conf_threshold=self.conf_threshold)
 
         for pair, score in results.items():
             if get_24h_volume_gbp(pair) < min_vol_gbp:
