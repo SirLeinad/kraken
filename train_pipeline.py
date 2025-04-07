@@ -11,7 +11,6 @@ import joblib
 from pathlib import Path
 
 Path("models").mkdir(exist_ok=True)
-joblib.dump(train_model(), "models/model_v1.0.pkl")
 
 db = Database()
 config = Config()
@@ -37,6 +36,12 @@ def main():
         train_model()
         db.set_state("model_last_trained", datetime.utcnow().isoformat())
         notify("📡 AI Model retrained successfully from backtest data.", key="retrain", priority="low")
+
+def save_trained_model():
+    print("[TRAIN] Starting model training for v1.0...")
+    model = train_model()
+    dump(model, "models/model_v1.0.pkl", compress=3)
+    print("[SAVE] Model dumped to models/model_v1.0.pkl")
 
 def run_pipeline(conf_threshold=0.8):
     focus = FOCUS_PAIRS
