@@ -6,24 +6,18 @@ import sys
 import threading
 
 print("[DEBUG] main.py starting")
-time.sleep(2)
 
 from pathlib import Path
 from config import Config
-from strategy import TradeStrategy
-from discovery import PairDiscovery
-from telegram_notifications import *
-from dashboard import send_daily_summary, show_balance, show_open_positions, show_trade_history
-from export_trades import export_trades_to_csv
 from database import Database
+from export_trades import export_trades_to_csv
+from dashboard import send_daily_summary, show_balance, show_open_positions, show_trade_history
+from telegram_notifications import *
+
+from discovery import PairDiscovery
+discovery = PairDiscovery()
 
 config = Config()
-
-print("[DEBUG] After notify, before strategy")
-strategy = TradeStrategy()
-print("[DEBUG] Strategy object created")
-
-discovery = PairDiscovery()
 db = Database()
 
 INTERVAL = config.get("discovery.interval_hours") * 3600
@@ -101,6 +95,11 @@ def run_bot():
         notify(f"{USER}: Kraken AI Bot started. Paper trading enabled.", key="startup", priority="high")
     else:
         notify(f"{USER}: Kraken AI Bot started. Live trading enabled.", key="startup", priority="high")
+
+    from strategy import TradeStrategy
+    print("[DEBUG] After notify, before strategy")
+    strategy = TradeStrategy()
+    print("[DEBUG] Strategy object created")
 
     while True:
         start_time = time.time()

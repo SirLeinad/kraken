@@ -91,10 +91,39 @@ class KrakenClient:
         self._rate_limit()
         return self.k.get_ticker_information(pair)
 
-    def get_ohlc(self, pair, interval=60):
-        self._rate_limit()
-        ohlc, _ = self.k.get_ohlc_data(pair, interval=interval)
-        return ohlc
+    def get_ohlc(self, pair: str, interval: int = 60):
+        try:
+            params = {
+                "pair": pair,
+                "interval": interval
+            }
+
+            response = requests.get(self.BASE_URL, params=params)
+            response.raise_for_status()
+            raw = response.json()
+
+            if raw.get("error"):
+                raise ValueError(f"Kraken API error: {raw['error']}")
+
+            raw_data = raw["result"]
+            last_key = [k for k in raw_data.keys() if k != "last"][0]
+            data = raw_data[last_key]
+
+            df = pd.DataFrame(data, columns=[
+                "time", "open", "high", "low", "close", "vwap", "volume", "count"
+            ])
+            df[["open", "high", "low", "close", "vwap", "volume"]] = df[[
+                "open", "high", "low", "close", "vwap", "volume"
+            ]].astype(float)
+
+            df["time"] = pd.to_datetime(df["time"], unit="s")
+            df.set_index("time", inplace=True)
+
+            return df
+
+        except Exception as e:
+            print(f"[ERROR] Failed to fetch OHLC for {pair}: {e}")
+            return pd.DataFrame()
 
     def get_tradable_asset_pairs(self):
         self._rate_limit()

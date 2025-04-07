@@ -5,6 +5,9 @@ from pathlib import Path
 
 CONFIG_PATH = Path("config.json")
 
+if not CONFIG_PATH.exists():
+    raise FileNotFoundError("[CONFIG] Missing config.json. Please create one.")
+
 class Config:
     def __init__(self):
         with open("config.json") as f:

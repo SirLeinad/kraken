@@ -3,19 +3,18 @@
 import os
 import json
 import pandas as pd
-from kraken_api import KrakenClient
 from config import Config
 from telegram_notifications import *
 from database import Database
 from exporter import log_trade
-from ai_model import calculate_confidence
-from collections import defaultdict
-from datetime import datetime
-from pathlib import Path
 from time import sleep, time
+from pathlib import Path
 from collections import defaultdict
 from datetime import datetime, timedelta
 from logger import log_trade_result
+from kraken_api import KrakenClient
+from ai_model import calculate_confidence
+from collections import defaultdict
 
 config = Config()
 kraken = KrakenClient()

@@ -38,7 +38,13 @@ class PairDiscovery:
         self.min_volume_gbp = self.config.get("discovery.min_volume_24h_gbp", 100000)
         self.max_volatility = self.config.get("discovery.max_volatility", 0.15)
 
-        results = run_pipeline(conf_threshold=self.conf_threshold)
+        from train_pipeline import run_pipeline
+        try:
+            results = run_pipeline(conf_threshold=self.conf_threshold)
+        except Exception as e:
+            print(f"[ERROR] run_pipeline() failed: {e}")
+            results = []
+
 
         for pair, score in results.items():
             if get_24h_volume_gbp(pair) < min_vol_gbp:

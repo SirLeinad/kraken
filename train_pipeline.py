@@ -37,6 +37,20 @@ def main():
         db.set_state("model_last_trained", datetime.utcnow().isoformat())
         notify("📡 AI Model retrained successfully from backtest data.", key="retrain", priority="low")
 
+def run_pipeline(conf_threshold=0.8):
+    focus = FOCUS_PAIRS
+    results = {}
+
+    for pair in focus:
+        print(f"[PIPELINE] Running backtest for {pair}...")
+        result = run_backtest(pair)
+        if isinstance(result, tuple) and result[1] >= conf_threshold:
+            results[result[0]] = result[1]
+
+    if not results:
+        print("[PIPELINE] No pairs passed the threshold.")
+    return results
+
 def save_trained_model():
     print("[TRAIN] Starting model training for v1.0...")
     model = train_model()

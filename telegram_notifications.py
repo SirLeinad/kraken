@@ -1,10 +1,10 @@
 # File: telegram_notifications.py
 
-from notifier import send_telegram
-from config import Config
 import time
 import sys
 from database import Database
+from notifier import send_telegram
+from config import Config
 
 db = Database()
 config = Config()
