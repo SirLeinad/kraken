@@ -62,7 +62,8 @@
   "summary_time": "08:00",
   "summary_retention_days": 14,
   "train_from_backtest": true,
+  "model_staleness_days": 7,
   "telegram_enabled": true,
-  "use_ml_model": false,
+  "use_ml_model": true,
   "model_version": "v1.0"
 }
