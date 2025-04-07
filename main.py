@@ -1,4 +1,5 @@
 # File: main.py
+print("[DEBUG] main.py starting")
 
 import time
 import datetime

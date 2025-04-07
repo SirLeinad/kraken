@@ -74,6 +74,12 @@ def load_trade_history_for_training():
         return []
 
 if __name__ == "__main__":
-    run_pipeline()
+    import sys
+    if "--train" in sys.argv:
+        save_trained_model()
+    elif "--pipeline" in sys.argv:
+        run_pipeline()
+    else:
+        print("Usage: python train_pipeline.py --train | --pipeline")
 # do not use in strategy, logger or telegram_bot.
 # Usage python train_pipeline.py
