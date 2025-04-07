@@ -1,4 +1,7 @@
 # File: main.py
+
+print("[DEBUG] Loaded main.py")
+
 import time
 import datetime
 import os
@@ -10,19 +13,13 @@ print("[DEBUG] main.py starting")
 from pathlib import Path
 from config import Config
 from database import Database
-from export_trades import export_trades_to_csv
 from dashboard import send_daily_summary, show_balance, show_open_positions, show_trade_history
 from telegram_notifications import *
 
-from discovery import PairDiscovery
-discovery = PairDiscovery()
-
 config = Config()
 db = Database()
-
 INTERVAL = config.get("discovery.interval_hours") * 3600
 USER = config.get("user")
-
 SUMMARY_TIME = config.get("summary_time", default="08:00")  # HH:MM
 SUMMARY_HOUR, SUMMARY_MINUTE = map(int, SUMMARY_TIME.split(":"))
 last_discovery = float(db.get_state("last_discovery") or 0)
@@ -31,19 +28,14 @@ SUMMARY_DIR = Path("summaries")
 SUMMARY_DIR.mkdir(exist_ok=True)
 MAX_SUMMARY_AGE_DAYS = int(config.get("summary_retention_days", default=14))
 
-def heartbeat():
-    while True:
-        print(f"[HEARTBEAT] Bot alive @ {datetime.datetime.now().isoformat()}")
-        time.sleep(60)
-
 def restart_bot():
     print("[RELOAD] Restarting bot...")
     os.execv(sys.executable, [sys.executable] + sys.argv)
 
 def archive_daily_summary():
-    # Export daily trades to CSV
     from export_trades import export_trades_to_csv
     export_trades_to_csv()
+
     dt = datetime.datetime.now()
     date_str = dt.strftime("%Y-%m-%d")
     filepath = SUMMARY_DIR / f"summary_{date_str}.txt"
@@ -88,16 +80,16 @@ def cleanup_old_summaries():
 def run_bot():
     print('[INIT] Kraken AI bot starting...')
     global last_discovery, last_summary_date
-    
-    threading.Thread(target=heartbeat, daemon=True).start()
 
     if config.get("paper_trading") is True:
         notify(f"{USER}: Kraken AI Bot started. Paper trading enabled.", key="startup", priority="high")
+        print("[INFO] Paper Trading Enabled, Bot Started")
     else:
         notify(f"{USER}: Kraken AI Bot started. Live trading enabled.", key="startup", priority="high")
+        print("[INFO] Live Trading Enabled, Bot Started")
 
-    from strategy import TradeStrategy
     print("[DEBUG] After notify, before strategy")
+    from strategy import TradeStrategy
     strategy = TradeStrategy()
     print("[DEBUG] Strategy object created")
 
@@ -122,6 +114,8 @@ def run_bot():
                 notify(f"{USER}: Bot error occurred: {e}", key="error", priority="medium")
 
         # Discovery interval
+        from discovery import PairDiscovery
+        discovery = PairDiscovery()
         now = time.time()
         if time.time() - last_discovery >= INTERVAL:
             try:

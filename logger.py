@@ -1,3 +1,5 @@
+print("[DEBUG] Loaded logger.py")
+
 import json
 from datetime import datetime
 

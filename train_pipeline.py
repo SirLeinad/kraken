@@ -1,5 +1,7 @@
 # File: train_pipeline.py
 
+print("[DEBUG] Loaded train_pipeline.py")
+
 import subprocess
 from database import Database
 from datetime import datetime

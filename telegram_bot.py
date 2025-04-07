@@ -1,5 +1,7 @@
 # File: telegram_bot.py
 
+print("[DEBUG] Loaded telegram_bot.py")
+
 import requests
 import time
 import logging
@@ -81,7 +83,7 @@ def handle_command(text):
             from export_graph import plot_profit_graph
             path = plot_profit_graph()
             files = {'document': open(path, 'rb')}
-            requests.post(f"{BASE_URL}/sendDocument", data={"chat_id": CHAT_ID}, files=files)
+            requests.post(f"{BASE_URL}/sendDocument", data={"chat_id": CHAT_ID}, files=files, timeout=10)
         except Exception as e:
             send_telegram(f"❌ Graph export failed: {e}")
 

@@ -1,5 +1,7 @@
 # File: dashboard.py
 
+print("[DEBUG] Loaded dashboard.py")
+
 import sqlite3
 import datetime
 from config import Config

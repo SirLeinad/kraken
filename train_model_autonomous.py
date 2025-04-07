@@ -1,3 +1,5 @@
+print("[DEBUG] Loaded train_model_autonomous.py")
+
 from train_model_from_backtest import train_model
 from utils.ohlcv_sync import sync_all_ohlcv
 

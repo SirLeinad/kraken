@@ -1,5 +1,7 @@
 # File: config.py
 
+print("[DEBUG] Loaded config.py")
+
 import json
 from pathlib import Path
 

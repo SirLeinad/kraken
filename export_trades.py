@@ -1,5 +1,7 @@
 # File: export_trades.py
 
+print("[DEBUG] Loaded export_trades.py")
+
 import sqlite3
 import pandas as pd
 from datetime import datetime

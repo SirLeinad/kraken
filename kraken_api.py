@@ -1,5 +1,7 @@
 # File: kraken_api.py
 
+print("[DEBUG] Loaded kraken_api.py")
+
 import krakenex
 from pykrakenapi import KrakenAPI
 from config import Config
@@ -20,6 +22,8 @@ print("[DEBUG] Config loaded.")
 warnings.filterwarnings("ignore", message="'T' is deprecated")
 
 class KrakenClient:
+    BASE_URL = "https://api.kraken.com/0/public/OHLC"
+
     def __init__(self):
         self.api = krakenex.API(
             key=config.get('kraken.api_key'),
@@ -72,7 +76,7 @@ class KrakenClient:
         if since:
             params["since"] = since
 
-        response = requests.get(url, params=params)
+        response = requests.get(url, params=params, timeout=10)
         data = response.json()
 
         if not data.get("result"):
@@ -98,7 +102,7 @@ class KrakenClient:
                 "interval": interval
             }
 
-            response = requests.get(self.BASE_URL, params=params)
+            response = requests.get(self.BASE_URL, params=params, timeout=10)
             response.raise_for_status()
             raw = response.json()
 
@@ -139,7 +143,7 @@ class KrakenClient:
         params = {"pair": pair, "interval": interval}
         if since:
             params["since"] = since
-        resp = requests.get(url, params=params).json()
+        resp = requests.get(url, params=params, timeout=10).json()
         data = resp["result"]
         for key in data:
             if key != "last":

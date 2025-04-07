@@ -1,3 +1,5 @@
+print("[DEBUG] Loaded feature_engineering.py")
+
 import pandas as pd
 
 def engineer_features_from_ohlcv(df):

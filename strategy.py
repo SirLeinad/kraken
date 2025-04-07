@@ -1,5 +1,7 @@
 # File: strategy.py
 
+print("[DEBUG] Loaded strategy.py")
+
 import os
 import json
 import pandas as pd
@@ -44,11 +46,12 @@ class TradeStrategy:
         self.trade_history_path = Path("data/trade_history.json")
         self.trade_history_archive_dir = Path("data/trade_history_archive")
         self.trade_history = self.load_trade_history()
-        self.initial_budget = config.get("strategy.initial_budget_gbp", 1000)
+        self.initial_budget = config.get("strategy.initial_budget_gbp", 500)
 
         try:
             with open("data/discovered_pairs.json") as f:
                 self.discovered_data = json.load(f)
+
             self.model_version = self.discovered_data.get("model_version", "unknown")
             self.discovered_pairs = {
                 pair for pair, score in self.discovered_data.get("pairs", {}).items()

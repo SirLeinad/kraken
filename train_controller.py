@@ -1,3 +1,5 @@
+print("[DEBUG] Loaded train_controller.py")
+
 from pathlib import Path
 from train_model_from_backtest import train_model
 from utils.ohlcv_sync import sync_all_ohlcv

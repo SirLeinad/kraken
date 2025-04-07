@@ -1,5 +1,7 @@
 # File: audit_discovered.py
 
+print("[DEBUG] Loaded audit_discovered.py")
+
 import json
 from pathlib import Path
 from kraken_api import KrakenClient
