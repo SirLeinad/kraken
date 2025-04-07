@@ -6,7 +6,6 @@ from pathlib import Path
 from config import Config
 from database import Database
 from time import time
-from train_pipeline import run_pipeline
 from kraken_api import KrakenClient  # Assumes this returns OHLCV DataFrame
 from utils.data_loader import load_ohlcv_csv
 
@@ -35,8 +34,10 @@ class PairDiscovery:
             print("[DISCOVERY] Skipped: interval not reached.")
             return {}
 
-        print("[DISCOVERY] Running pipeline...")
-        results = run_pipeline(conf_threshold=self.conf_threshold)
+        self.discovered = {}  # <- just return empty if needed
+        print("[DISCOVERY] Skipping pipeline: disabled at startup.")
+        return self.discovered
+
         
         self.discovered = {}
         self.min_volume_gbp = self.config.get("discovery.min_volume_24h_gbp", 100000)

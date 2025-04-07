@@ -40,22 +40,8 @@ def main():
 def save_trained_model():
     print("[TRAIN] Starting model training for v1.0...")
     model = train_model()
-    dump(model, "models/model_v1.0.pkl", compress=3)
+    joblib.dump(model, "models/model_v1.0.pkl", compress=3)
     print("[SAVE] Model dumped to models/model_v1.0.pkl")
-
-def run_pipeline(conf_threshold=0.8):
-    focus = FOCUS_PAIRS
-    results = {}
-
-    for pair in focus:
-        print(f"[PIPELINE] Running backtest for {pair}...")
-        result = run_backtest(pair)
-        if isinstance(result, tuple) and result[1] >= conf_threshold:
-            results[result[0]] = result[1]
-
-    if not results:
-        print("[PIPELINE] No pairs passed the threshold.")
-    return results
 
 def load_trade_history_for_training():
     try:
@@ -78,8 +64,6 @@ if __name__ == "__main__":
     if "--train" in sys.argv:
         save_trained_model()
     elif "--pipeline" in sys.argv:
-        run_pipeline()
+        main()
     else:
         print("Usage: python train_pipeline.py --train | --pipeline")
-# do not use in strategy, logger or telegram_bot.
-# Usage python train_pipeline.py
