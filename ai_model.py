@@ -8,7 +8,6 @@ import joblib
 from kraken_api import KrakenClient
 from config import Config
 import warnings
-import joblib
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -32,6 +31,11 @@ def calculate_confidence(pair: str, interval: int = 60, window: int = 30) -> flo
     try:
         ohlc = kraken.get_ohlc(pair, interval=interval)
         df = ohlc.tail(window).copy()
+
+        if df.empty or "close" not in df.columns:
+            print(f"[ERROR] Empty or missing 'close' column for {pair}. df.columns: {df.columns.tolist()}")
+            return 0.0
+
         if len(df) < 10:
             return 0.0
 
@@ -39,7 +43,6 @@ def calculate_confidence(pair: str, interval: int = 60, window: int = 30) -> flo
         df['momentum'] = df['momentum'].infer_objects(copy=False)
 
         df['volatility'] = df['close'].rolling(5).std()
-        
         df['volume_trend'] = df['volume'].pct_change().fillna(0.0)
         df['volume_trend'] = df['volume_trend'].infer_objects(copy=False)
 
@@ -49,10 +52,6 @@ def calculate_confidence(pair: str, interval: int = 60, window: int = 30) -> flo
 
         if USE_ML_MODEL and MODEL:
             from feature_engineering import compute_rsi, compute_sma
-
-            if "close" not in df.columns:
-                print(f"[ERROR] Missing 'close' column for {pair}. Columns present: {df.columns.tolist()}")
-                return 0.0
 
             try:
                 latest = df.iloc[-1].copy()

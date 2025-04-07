@@ -50,8 +50,13 @@ def load_all_training_data():
                 skipped_files.append((file.name, f"CSV Load Failed: {e}"))
                 continue
 
-            if df.iloc[0]["time"] == "time":
-                df = df.iloc[1:]  # drop existing header row if duplicated
+            if not df.empty and str(df.iloc[0]["time"]).lower() == "time":
+                df = df.iloc[1:]
+            df = df.dropna()
+
+            if "close" not in df.columns or df["close"].isnull().all():
+                skipped_files.append((file.name, "Missing or invalid 'close' column"))
+                continue
 
             X, y = engineer_features_from_ohlcv(df)
 
@@ -94,7 +99,7 @@ def train_model():
             random_state=42,
             verbosity=2
         )
-        model.fit(X_train[:200], y_train[:200])  # quick dummy run to trigger GPU
+        model.fit(X_train[:10], y_train[:10])  # quick dummy run to trigger GPU
         print("[GPU] XGBoost using GPU.")
     except Exception as gpu_err:
         print(f"[GPU FALLBACK] GPU failed: {gpu_err}")
@@ -114,18 +119,15 @@ def train_model():
     start = time.time()
 
     try:
-        dump(model, "models/model_v1.0.pkl", compress=3)  # optional compression
+        joblib.dump(model, MODEL_PATH, compress=3)  # optional compression
         print(f"[SAVE] Model dumped in {time.time() - start:.2f}s")
     except Exception as e:
         print(f"[ERROR] Failed to dump model: {e}")
 
-
-    # DB metadata
     db.set_state("model_version", MODEL_VERSION)
     db.set_state("model_accuracy", round(score, 4))
     db.set_state("model_trained_at", datetime.utcnow().isoformat())
 
-    # Optional: write JSON metadata too
     meta_path = Path("models/model_meta.json")
     meta_path.write_text(str({
         "version": MODEL_VERSION,
