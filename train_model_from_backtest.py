@@ -1,6 +1,7 @@
 import pandas as pd
 import joblib
 import time
+import platform
 from pathlib import Path
 from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier
@@ -91,7 +92,7 @@ def train_model():
             random_state=42,
             verbosity=2
         )
-        model.fit(X_train[:10], y_train[:10])  # quick dummy run to trigger GPU
+        model.fit(X_train[:200], y_train[:200])  # quick dummy run to trigger GPU
         print("[GPU] XGBoost using GPU.")
     except Exception as gpu_err:
         print(f"[GPU FALLBACK] GPU failed: {gpu_err}")
@@ -104,9 +105,11 @@ def train_model():
         )
 
     model.fit(X_train, y_train)
+    print("[INFO] Model training completed.")
     score = model.score(X_test, y_test)
 
     # Save model file
+    print(f"[INFO] Training on: {model.get_params().get('device')}, Platform: {platform.system()}")
     joblib.dump(model, MODEL_PATH)
     print(f"[SAVE] Trained model saved: {MODEL_PATH} (acc={score:.2%})")
 

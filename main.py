@@ -98,7 +98,7 @@ def run_bot():
 
         # Daily summary
         dt_now = datetime.datetime.now()
-        if dt_now.strftime("%H:%M") == config.summary_time and (last_summary_date != dt_now.date().isoformat()):
+        if dt_now.strftime("%H:%M") == config.get("summary_time") and (last_summary_date != dt_now.date().isoformat()):
             try:
                 strategy.send_daily_summary()
                 archive_daily_summary()

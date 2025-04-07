@@ -6,9 +6,9 @@ from pathlib import Path
 CONFIG_PATH = Path("config.json")
 
 class Config:
-    def __init__(self, path="config.json"):
-        with open(path) as f:
-            self.config = json.load(f)
+    def __init__(self):
+        with open("config.json") as f:
+            self.data = json.load(f)
         self.validate_required_keys()
 
     def get(self, dotted_key: str, default=None):
@@ -35,6 +35,16 @@ class Config:
         for key in required_keys:
             if self.get(key, None) is None:
                 raise ValueError(f"[CONFIG] Required key missing or invalid: {key}")
+    
+    def log_unused_keys(self):
+        defined_keys = {
+            "telegram", "kraken", "strategy", "discovery", "margin", "paper_trading",
+            "user", "summary_time", "summary_retention_days", "train_from_backtest",
+            "telegram_enabled", "use_ml_model", "model_version", "trading_rules", "telegram_intervals"
+        }
+        unused = set(self.config.keys()) - defined_keys
+        if unused:
+            print(f"[CONFIG] Unused top-level keys: {unused}")
 
     def _load(self):
         if not CONFIG_PATH.exists():
@@ -82,6 +92,30 @@ class Config:
     @property
     def user(self):
         return self.config.get("user", "Daniel")
+
+    @property
+    def summary_time(self):
+        return self.config.get("summary_time", "09:00")
+
+    @property
+    def summary_retention_days(self):
+        return self.config.get("summary_retention_days", 14)
+
+    @property
+    def train_from_backtest(self):
+        return self.config.get("train_from_backtest", True)
+
+    @property
+    def telegram_enabled(self):
+        return self.config.get("telegram_enabled", True)
+
+    @property
+    def use_ml_model(self):
+        return self.config.get("use_ml_model", False)
+
+    @property
+    def model_version(self):
+        return self.config.get("model_version", "v1.0")
 
 if __name__ == "__main__":
     cfg = Config()
