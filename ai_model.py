@@ -59,7 +59,8 @@ def calculate_confidence(pair: str, interval: int = 1, window: int = 30) -> floa
         df['momentum'] = df['momentum'].infer_objects(copy=False)
 
         df['volatility'] = df['close'].rolling(5).std()
-        df['volume_trend'] = df['volume'].pct_change().fillna(0.0)
+        with np.errstate(divide='ignore', invalid='ignore'):
+            df['volume_trend'] = df['volume'].pct_change().replace([np.inf, -np.inf], 0).fillna(0.0)
         df['volume_trend'] = df['volume_trend'].infer_objects(copy=False)
 
         mean_close = df['close'].mean()
@@ -104,15 +105,34 @@ def calculate_confidence(pair: str, interval: int = 1, window: int = 30) -> floa
             proba = MODEL.predict_proba(features)[0][1]
             return round(float(proba), 4)
 
-        momentum_score = df['momentum'].mean()
-        volatility_score = 1.0 - df['volatility'].mean() / mean_close
+        # Compute improved momentum across window
+        momentum_score = (df['close'].iloc[-1] - df['close'].iloc[0]) / df['close'].iloc[0]
+
+        # Compute volatility as mean of rolling 5-return stddev
+        volatility_score = df['close'].pct_change().rolling(5).std().mean()
+
+        # Fix volume anomaly
+        with np.errstate(divide='ignore', invalid='ignore'):
+            df['volume_trend'] = df['volume'].pct_change().replace([np.inf, -np.inf], 0).fillna(0.0)
+
         volume_score = df['volume_trend'].mean()
 
-        score = 0.0
-        score += np.clip(momentum_score * 5, -1, 1)
-        score += np.clip(volatility_score, -1, 1)
-        score += np.clip(volume_score * 2, -1, 1)
-        score = (score + 3) / 6
+        # Normalize all to 0–1 scale
+        momentum_norm = np.clip((momentum_score + 0.02) / 0.04, 0, 1)
+        volatility_norm = np.clip(volatility_score / 0.005, 0, 1)
+        volume_norm = np.clip((volume_score + 0.1) / 0.2, 0, 1)
+
+        # Weighted average
+        score = round(float(momentum_norm * 0.4 + volatility_norm * 0.3 + volume_norm * 0.3), 4)
+
+        # Debug log
+        #print(f"[DEBUG] Fallback scores for {pair}")
+        #print(f"  momentum_raw:  {momentum_score:.5f}")
+        #print(f"  volatility_std: {volatility_score:.5f}")
+        #print(f"  volume_raw:    {volume_score:.5f}")
+        #print(f"  normalized:    momentum={momentum_norm:.2f}, vol={volatility_norm:.2f}, volume={volume_norm:.2f}")
+        #print(f"  final score:   {score:.4f}")
+
         return round(float(np.clip(score, 0.0, 1.0)), 4)
 
     except Exception as e:

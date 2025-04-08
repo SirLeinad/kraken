@@ -198,7 +198,6 @@ class TradeStrategy:
 
         print(f"[CONFIDENCE] {pair} → {score:.4f}")
         threshold = config.get('strategy.bull_threshold')
-        print(f"[THRESHOLD] {pair} → requires score > {threshold}")
 
         with open("logs/ai_confidence_log.csv", "a") as f:
             f.write(f"{datetime.utcnow()},{pair},{score:.4f},{threshold}\n")
@@ -324,10 +323,9 @@ class TradeStrategy:
             should_exit = True
             reason = "take-profit"
         else:
-            score = calculate_confidence(pair)
-            if score < EXIT_AI_SCORE:
-                should_exit = True
-                reason = f"AI-score low ({score:.3f})"
+            score = self.ai_scores.get(pair)
+            if score is None:
+                score = calculate_confidence(pair)
 
         stop_loss_pct, take_profit_pct = self.get_dynamic_thresholds(pair)
         if (price - entry_price) / entry_price <= -stop_loss_pct:
@@ -336,7 +334,7 @@ class TradeStrategy:
         elif (price - entry_price) / entry_price >= take_profit_pct:
             notify(f"{USER}: 🟢 Take-profit hit for {pair}. Selling...", priority="high")
             self.place_sell(pair, reason="take_profit")
-        elif ai_score and ai_score < EXIT_BELOW_AI_SCORE:
+        elif (score := self.ai_scores.get(pair)) is not None and score < EXIT_AI_SCORE:
             notify(f"{USER}: ⚠️ AI confidence dropped below threshold for {pair}. Selling...", priority="medium")
             self.place_sell(pair, reason="low_ai_conf")
 
@@ -457,6 +455,15 @@ class TradeStrategy:
         used_gbp = 0.0
         report = []
         for pair in self.eligible_pairs():
+            confidence = self.ai_scores.get(pair)
+            last_trade = self.trade_history.get(pair, {})
+            last_pnl = last_trade.get("pnl", 0)
+
+            if confidence and last_pnl < 0:
+                adjusted_conf = confidence * 0.9  # decay 10% if previous trade lost money
+                print(f"[DECAY] Adjusted confidence for {pair}: {confidence:.2f} → {adjusted_conf:.2f}")
+                confidence = adjusted_conf
+
             try:
                 print(f'[CHECK] Evaluating stop-loss for {pair}')
                 self.check_stop_loss(pair)
@@ -467,15 +474,6 @@ class TradeStrategy:
                     report.append(f"⏸ No signal: {pair}")  # suppressed for cleaner summary
             except Exception as e:
                 report.append(f"❌ Error {pair}: {e}")
-
-        confidence = self.ai_scores.get(pair)
-        last_trade = self.trade_history.get(pair, {})
-        last_pnl = last_trade.get("pnl", 0)
-
-        if confidence and last_pnl < 0:
-            adjusted_conf = confidence * 0.9  # decay 10% if previous trade lost money
-            print(f"[DECAY] Adjusted confidence for {pair}: {confidence:.2f} → {adjusted_conf:.2f}")
-            confidence = adjusted_conf
 
         if report:
             all_bal = kraken.get_all_balances()

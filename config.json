@@ -68,6 +68,6 @@
       "LTCGBP"
     ]
   },
-  "use_ml_model": true,
+  "use_ml_model": false,
   "user": "Daniel"
 }
