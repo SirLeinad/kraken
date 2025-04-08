@@ -153,9 +153,9 @@ class TradeStrategy:
             pair=pair,
             action="buy",
             volume=vol,
-            entry_price=entry,
-            exit_price=exit,
-            pnl=exit - entry,
+            entry_price=float(entry),
+            exit_price=float(exit),
+            pnl=exit_price - entry_price,
             model=self.model_version,
             confidence=self.ai_scores.get(pair)
         )
@@ -294,7 +294,7 @@ class TradeStrategy:
             with open("logs/paper_trade_log.csv", "a") as f:
                 f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{confidence:.4f}\n")
         else:
-            result = kraken.place_order(pair, side="buy", volume=vol, leverage=leverage)
+            result = kraken.place_order(pair, side="buy", volume=vol)
             if not result or result.get("error"):
                 print(f"[BLOCKED] Kraken rejected trade: {result.get('error')}")
                 notify(f"{USER}: ❌ Kraken rejected trade for {pair}. Reason: {result.get('error')}")
@@ -379,7 +379,7 @@ class TradeStrategy:
             else:
                 leverage = LEVERAGE_BY_PAIR.get(pair.upper()) if MARGIN_ENABLED else None
                 try:
-                    result = kraken.place_order(pair, side="sell", volume=vol, leverage=leverage, reduce_only=bool(leverage))
+                    result = kraken.place_order(pair, side="sell", volume=vol)
                     log_trade(pair, "sell", vol, current_price)
                     sell_order_notification(USER, pair, vol, current_price, reason, result, priority="high")
                 except Exception as e:
