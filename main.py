@@ -2,11 +2,14 @@
 
 #print("[DEBUG] Loaded main.py")
 
+import builtins
 import time
 import datetime
 import os
 import sys
 import threading
+
+print = lambda *args, **kwargs: builtins.print(*args, flush=True, **kwargs)
 
 #print("[DEBUG] main.py starting")
 
@@ -18,6 +21,7 @@ from telegram_notifications import *
 
 config = Config()
 db = Database()
+loop_interval = config.get("strategy.loop_interval_sec", default=60)
 INTERVAL = config.get("discovery.interval_hours") * 3600
 USER = config.get("user")
 SUMMARY_TIME = config.get("summary_time", default="08:00")  # HH:MM
@@ -124,9 +128,9 @@ def run_bot():
             except Exception as e:
                 print(f"[ERROR] Discovery failed: {e}")
 
-        # Delay to keep loop at ~120s, minimum 60s
         elapsed = time.time() - start_time
-        delay = max(120 - elapsed, 60)
+        delay = max(loop_interval - elapsed, 0)
+        print(f"[LOOP] Sleeping for {delay:.2f} seconds...")
         time.sleep(delay)
 
 if __name__ == '__main__':

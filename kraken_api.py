@@ -95,7 +95,12 @@ class KrakenClient:
         self._rate_limit()
         return self.k.get_ticker_information(pair)
 
-    def get_ohlc(self, pair: str, interval: int = 60):
+    def get_ohlc(self, pair: str, interval: int = None):
+        if interval is None:
+            from config import Config
+            config = Config()
+            interval = config.get("strategy.confidence_interval", default=1)
+
         try:
             params = {
                 "pair": pair,

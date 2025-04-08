@@ -24,12 +24,18 @@ if USE_ML_MODEL:
     try:
         MODEL = joblib.load(MODEL_PATH)
         print("✅ ML model loaded for confidence scoring.")
+        print(f"[XGBOOST] Booster backend: {MODEL.get_booster().attributes()}")
+        #booster = MODEL.get_booster()
+        #print(f"[XGBOOST] Raw booster config:")
+        #print(booster.save_config())  # This shows exact params including predictor, device, method
+
     except Exception as e:
         print(f"⚠️ Failed to load model: {e}")
         MODEL = None
 
-def calculate_confidence(pair: str, interval: int = 60, window: int = 30) -> float:
+def calculate_confidence(pair: str, interval: int = 1, window: int = 30) -> float:
     try:
+        interval = config.get("strategy.confidence_interval", default=1)
         ohlc = kraken.get_ohlc(pair, interval=interval)
 
         #print(f"[TRACE] Raw OHLC df for {pair} → shape: {ohlc.shape}, columns: {ohlc.columns.tolist()}")

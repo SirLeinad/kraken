@@ -1,69 +1,73 @@
 {
-  "telegram": {
-    "bot_token": "8053622861:AAGqwj5RiX9c7CwvL2JmCVJ22KX0UmqPl-o",
-    "chat_id": "1084100703"
+  "discovery": {
+    "enabled": true,
+    "interval_hours": 2,
+    "max_active_pairs": 2,
+    "max_volatility": 0.15,
+    "min_volume_24h_gbp": 100000
   },
   "kraken": {
     "api_key": "41L5SRNV/30XLCk4/LwNooNPDRV8ukwycVfN5/NAFtWKkFaa6xITOsMN",
     "api_secret": "VGetVrfhDp8WB8JXOZXZiu/6sNyR9GL2IviGD42UpRqR0QlRYXZTGMyPSObYQw8i5y6PNIOQRtLCo8CjHmKrDw=="
   },
-  "strategy": {
-    "initial_budget_gbp": 500,
-    "stop_loss_pct": 0.02,
-    "bull_threshold": 0.6,
-    "buy_allocation_pct": 0.10,
-    "take_profit_pct": 0.05,
-    "exit_below_ai_score": 0.3,
-    "pair_trade_cooldown_sec": 3600,
-    "max_open_positions": 4,
-    "min_confidence": 0.75,
-    "bot_enabled": true,
-    "hourly_pl_report": true
-  },
-  "trading_rules": {
-    "excluded_pairs": [
-      "XRPGBP",
-      "DOGEGBP",
-      "GALAGBP",
-      "BONKUSD",
-      "XLMGBP"
-    ],
-    "focus_pairs": [
-      "XBTGBP",
-      "ETHGBP",
-      "SOLGBP",
-      "DOTGBP"
-    ]
-  },
-  "telegram_intervals": {
-    "medium_sec": 1800,
-    "low_sec": 3600
-  },
-  "discovery": {
-    "enabled": true,
-    "interval_hours": 2,
-    "min_volume_24h_gbp": 100000,
-    "max_active_pairs": 2,
-    "max_volatility": 0.15
-  },
   "margin": {
     "enabled": true,
     "leverage_by_pair": {
-      "XBTUSD": 5,
-      "USDTEUR": 3,
-      "USDTUSD": 2,
-      "XBTGBP": 3,
       "ETHGBP": 3,
-      "SOLGBP": 3
+      "SOLGBP": 3,
+      "USDTUSD": 2,
+      "USDTEUR": 3,
+      "XBTGBP": 3,
+      "XBTUSD": 5
     }
   },
-  "paper_trading": false,
-  "user": "Daniel",
-  "summary_time": "08:00",
-  "summary_retention_days": 14,
-  "train_from_backtest": true,
   "model_staleness_days": 7,
+  "model_version": "v1.0",
+  "paper_trading": false,
+  "strategy": {
+    "bot_enabled": true,
+    "bull_threshold": 0.6,
+    "buy_allocation_pct": 0.10,
+    "confidence_interval": 1,
+    "loop_interval_sec": 60,
+    "exit_below_ai_score": 0.3,
+    "hourly_pl_report": true,
+    "initial_budget_gbp": 500,
+    "max_open_positions": 4,
+    "min_confidence": 0.75,
+    "pair_trade_cooldown_sec": 3600,
+    "stop_loss_pct": 0.02,
+    "take_profit_pct": 0.05
+  },
+  "summary_retention_days": 14,
+  "summary_time": "08:00",
+  "telegram": {
+    "bot_token": "8053622861:AAGqwj5RiX9c7CwvL2JmCVJ22KX0UmqPl-o",
+    "chat_id": "1084100703"
+  },
   "telegram_enabled": true,
+  "telegram_intervals": {
+    "low_sec": 3600,
+    "medium_sec": 1800
+  },
+  "train_from_backtest": true,
+  "trading_rules": {
+    "excluded_pairs": [
+      "BONKUSD",
+      "DOGEGBP",
+      "GALAGBP",
+      "XLMGBP",
+      "XRPGBP"
+    ],
+    "focus_pairs": [
+      "DOTGBP",
+      "ETHGBP",
+      "SOLGBP",
+      "XBTGBP",
+      "ADAGBP",
+      "LTCGBP"
+    ]
+  },
   "use_ml_model": true,
-  "model_version": "v1.0"
+  "user": "Daniel"
 }

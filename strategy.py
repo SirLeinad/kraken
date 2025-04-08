@@ -265,6 +265,9 @@ class TradeStrategy:
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
             meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
             log_trade(pair, "buy", vol, price, meta=meta)
+            from datetime import datetime
+            with open("logs/paper_trade_log.csv", "a") as f:
+                f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{meta.get('confidence'):.4f}\n")
         else:
             result = kraken.place_order(pair, side="buy", volume=vol, leverage=leverage)
             self.open_positions[pair] = {'price': price, 'volume': vol}
@@ -272,6 +275,9 @@ class TradeStrategy:
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
             meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
             log_trade(pair, "buy", vol, price, meta=meta)
+            from datetime import datetime
+            with open("logs/trade_log.csv", "a") as f:
+                f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{meta.get('confidence'):.4f}\n")
             db.set_state(f"cooldown_{pair}", time())
             return used_gbp + alloc_gbp
 
