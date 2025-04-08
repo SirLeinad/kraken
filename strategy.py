@@ -279,11 +279,14 @@ class TradeStrategy:
         print(f"[ALLOCATION] {pair} score={confidence:.2f} → allocation: £{alloc_gbp:.2f}")
         alloc_quote = self.gbp_to_quote(pair, alloc_gbp, kraken)
         MAX_PAIR_EXPOSURE_GBP = 100
+
+        alloc_quote = float(alloc_quote)
+        price = float(price)
         vol = round(alloc_quote / price, 6)
 
         leverage = LEVERAGE_BY_PAIR.get(pair.upper()) if MARGIN_ENABLED else None
         existing_vol = self.open_positions.get(pair, {}).get("volume", 0)
-        max_vol = MAX_PAIR_EXPOSURE_GBP / price
+        max_vol = MAX_PAIR_EXPOSURE_GBP / float(price)
 
         excluded = set(config.get("trading_rules.excluded_pairs", []))
         active_positions = [p for p in self.open_positions if p not in excluded]
@@ -389,7 +392,7 @@ class TradeStrategy:
             del self.open_positions[pair]
             db.remove_position(pair)
             self.trade_history[pair] = {
-                "pnl": round((current_price - entry_price) * vol, 6),
+                "pnl": round((float(current_price) - float(entry_price)) * float(vol), 6),
                 "timestamp": datetime.utcnow().isoformat(),
                 "confidence": self.ai_scores.get(pair),
                 "model_version": self.model_version
@@ -426,7 +429,7 @@ class TradeStrategy:
             if r['type'] == 'sell':
                 entry_price = db.get_entry_price(r['pair'])
                 if entry_price:
-                    profit += (r['price'] - entry_price) * r['volume'] if entry_price is not None else 0
+                    profit += (float(r['price']) - float(entry_price)) * float(r['volume'])
 
         lines = [
             f"📅 Daily Summary ({today})",
@@ -441,7 +444,7 @@ class TradeStrategy:
                     current_price = self.fetch_latest_price(pair)
                     entry_price = float(pos['price'])
                     entry_volume = float(pos['volume'])
-                    gain = (current_price - entry_price) * entry_volume
+                    gain = (float(current_price) - float(entry_price)) * float(entry_volume)
                     emoji = "🟢" if gain >= 0 else "🔻"
                     lines.append(f"{emoji} {pair}: {gain:+.2f} GBP")
                 except:
