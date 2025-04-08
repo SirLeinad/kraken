@@ -200,7 +200,6 @@ class TradeStrategy:
         threshold = config.get('strategy.bull_threshold')
         print(f"[THRESHOLD] {pair} → requires score > {threshold}")
 
-        from datetime import datetime
         with open("logs/ai_confidence_log.csv", "a") as f:
             f.write(f"{datetime.utcnow()},{pair},{score:.4f},{threshold}\n")
 
@@ -208,6 +207,10 @@ class TradeStrategy:
         db_log = f"AI_SCORE|{pair}|{score:.4f}"
         with open("logs/ai_scores.log", "a") as f:
             f.write(f"{db_log}\n")
+
+        if score == 0.0:
+            print(f"[AI] Warning: score=0.0 for {pair}, investigate calculate_confidence()")
+
         return score > threshold
 
     def store_top_ai_scores(self):
@@ -238,8 +241,12 @@ class TradeStrategy:
             return used_gbp
 
         price = self.fetch_latest_price(pair)
-        confidence = self.ai_scores.get(pair, 0.5)
-        confidence = max(0.3, min(confidence, 0.95))  # clamp to range
+        confidence = self.ai_scores.get(pair)
+        if confidence is None:
+            print(f"[WARN] No confidence score found for {pair} in place_buy()")
+            return used_gbp
+
+        print(f"[CONFIDENCE_USED] {pair} → {confidence:.4f}")
 
         scaling_factor = (confidence - 0.3) / (0.95 - 0.3)  # map to 0–1 scale
         alloc_pct = config.get("strategy.buy_allocation_pct", 0.10)
@@ -362,7 +369,6 @@ class TradeStrategy:
                 "model_version": self.model_version
             }
             self.save_trade_history()
-
 
     def get_dynamic_thresholds(self, pair):
         try:

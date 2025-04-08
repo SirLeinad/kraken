@@ -81,11 +81,29 @@ def calculate_confidence(pair: str, interval: int = 1, window: int = 30) -> floa
                 return 0.0
 
             features = pd.DataFrame([[latest["sma"], latest["rsi"]]], columns=["sma", "rsi"])
-            features = features.astype(np.float32)  # ✅ match model device type
-            proba = MODEL.predict_proba(features)[0][1]  # ✅ Input must be DataFrame
+            features = features.astype(np.float32)  
+            
+            if not hasattr(calculate_confidence, "_last_features"):
+                calculate_confidence._last_features = {}
+            key = f"{pair}_features"
+            current = features.to_dict(orient="records")[0]
+            previous = calculate_confidence._last_features.get(key)
+            if previous == current:
+                print(f"[NO CHANGE] Features unchanged for {pair}")
+            else:
+                print(f"[FEATURES] {pair} → {current}")
+                calculate_confidence._last_features[key] = current
+
+            print(f"[FEATURES] {pair} input → {features.to_dict(orient='records')}")
+            with open("logs/ai_feature_inputs.csv", "a") as f:
+                # Log with extra metadata
+                features["pair"] = pair
+                features["timestamp"] = pd.Timestamp.utcnow()
+                features.to_csv("logs/ai_feature_inputs.csv", header=False, index=False, mode="a")
+                features = features.drop(columns=["pair", "timestamp"])
+            proba = MODEL.predict_proba(features)[0][1]
             return round(float(proba), 4)
 
-        # fallback to original rule-based
         momentum_score = df['momentum'].mean()
         volatility_score = 1.0 - df['volatility'].mean() / mean_close
         volume_score = df['volume_trend'].mean()

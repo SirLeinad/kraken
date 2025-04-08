@@ -5,10 +5,14 @@
 import requests
 import time
 import logging
+from datetime import datetime
+from pathlib import Path
 from config import Config
 from strategy import TradeStrategy
 from telegram_notifications import notify
+from kraken import KrakenAPI  # or actual class/module name
 
+kraken = KrakenAPI()
 config = Config()
 USER = config.get('user')
 BOT_TOKEN = config.get('telegram.bot_token')
@@ -27,6 +31,16 @@ def get_updates(offset=None):
     except Exception as e:
         logging.error(f"Error fetching updates: {e}")
         return {}
+
+def send_telegram(message, parse_mode=None):
+    url = f"{BASE_URL}/sendMessage"
+    data = {"chat_id": CHAT_ID, "text": message}
+    if parse_mode:
+        data["parse_mode"] = parse_mode
+    try:
+        requests.post(url, data=data)
+    except Exception as e:
+        logging.error(f"Error sending Telegram message: {e}")
 
 def handle_command(text):
     with open("logs/commands.log", "a") as f:
@@ -246,7 +260,13 @@ def main():
                 if not text:
                     continue
                 logging.info(f"Command received: {text}")
-                handle_command(text)
+
+                try:
+                    handle_command(text)
+                except Exception as e:
+                    logging.error(f"Error handling command {text}: {e}")
+                    send_telegram("❌ Error processing your command.")
+
 
         time.sleep(2)
 

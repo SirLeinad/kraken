@@ -4,6 +4,7 @@
 
 import sqlite3
 import time
+import csv
 
 DB_PATH = "botdata.db"
 
@@ -88,6 +89,24 @@ class Database:
         c = self.conn.cursor()
         c.execute("DELETE FROM state WHERE key = ?", (key,))
         self.conn.commit()
+
+    def get_all_trades(self):
+        path = "logs/trade_log.csv"
+        trades = []
+        if not os.path.exists(path):
+            return trades
+        with open(path, newline='') as csvfile:
+            reader = csv.reader(csvfile)
+            for row in reader:
+                # Adjust columns to match your trade log
+                trades.append({
+                    "timestamp": row[0],
+                    "pair": row[1],
+                    "type": row[2],
+                    "volume": float(row[3]),
+                    "price": float(row[4]),
+                })
+        return trades
 
     def clear_all_positions(self):
         with self.conn:
