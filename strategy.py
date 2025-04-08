@@ -210,6 +210,7 @@ class TradeStrategy:
         if score == 0.0:
             print(f"[AI] Warning: score=0.0 for {pair}, investigate calculate_confidence()")
 
+        print(f"[DECISION] {pair} → score={score:.4f}, threshold={threshold} → {score > threshold}")
         return score > threshold
 
     def store_top_ai_scores(self):
@@ -229,20 +230,29 @@ class TradeStrategy:
     def place_buy(self, pair, used_gbp):
         now = time.time()
         gbp_balance = float(self.balance.get('ZGBP', 0.0)) - used_gbp
+        print(f"[BUY] Starting buy attempt for {pair}...")
+        print(f"[BALANCE] Available GBP: {gbp_balance:.2f}")
+
         if gbp_balance <= 10:
+            print(f"[BLOCKED] Not enough GBP to trade {pair}")
             notify(f"{USER}: Not enough GBP to trade {pair}. Remaining: £{gbp_balance:.2f}", key=f"nogbp_{pair}", priority="medium")
             return used_gbp
 
         last_time = db.get_state(f"cooldown_{pair}")
         last_time = float(last_time) if last_time else 0
         if last_time and (now - last_time) < self.pair_trade_cooldown:
+            print(f"[BLOCKED] Cooldown active for {pair}")
             notify(f"{USER}: Skipping {pair} — trade cooldown active.", key=f"cooldown_{pair}", priority="low")
             return used_gbp
 
         price = self.fetch_latest_price(pair)
+        if not price:
+            print(f"[BLOCKED] Could not fetch price for {pair}")
+            return used_gbp
+
         confidence = self.ai_scores.get(pair)
         if confidence is None:
-            print(f"[WARN] No confidence score found for {pair} in place_buy()")
+            print(f"[BLOCKED] No confidence score found for {pair} in place_buy()")
             return used_gbp
 
         print(f"[CONFIDENCE_USED] {pair} → {confidence:.4f}")
@@ -251,44 +261,50 @@ class TradeStrategy:
         alloc_pct = config.get("strategy.buy_allocation_pct", 0.10)
         alloc_gbp = gbp_balance * (alloc_pct + scaling_factor * alloc_pct)
 
-        print(f"[ALLOCATION] {pair} score={confidence:.2f} → allocation: {alloc_gbp:.2f}")
+        print(f"[ALLOCATION] {pair} score={confidence:.2f} → allocation: £{alloc_gbp:.2f}")
         alloc_quote = self.gbp_to_quote(pair, alloc_gbp, self.kraken)
-        MAX_PAIR_EXPOSURE_GBP = 100  # e.g. allow max £100 exposure per pair
-
+        MAX_PAIR_EXPOSURE_GBP = 100
         vol = round(alloc_quote / price, 6)
-        leverage = LEVERAGE_BY_PAIR.get(pair.upper()) if MARGIN_ENABLED else None
 
+        leverage = LEVERAGE_BY_PAIR.get(pair.upper()) if MARGIN_ENABLED else None
         existing_vol = self.open_positions.get(pair, {}).get("volume", 0)
-        max_vol = (MAX_PAIR_EXPOSURE_GBP / price)
+        max_vol = MAX_PAIR_EXPOSURE_GBP / price
 
         excluded = set(config.get("trading_rules.excluded_pairs", []))
         active_positions = [p for p in self.open_positions if p not in excluded]
+        print(f"[POSITIONS] Active: {active_positions} (excluded ignored)")
+
         if len(active_positions) >= config.get("strategy.max_open_positions", 4):
+            print(f"[BLOCKED] Max open positions reached ({len(active_positions)} / {config.get('strategy.max_open_positions')})")
             notify(f"{USER}: Max open positions reached (excluding excluded pairs).")
             return used_gbp
-
 
         if PAPER_MODE:
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
-            meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
+            meta = {"model": self.model_version, "confidence": confidence}
             log_trade(pair, "buy", vol, price, meta=meta)
-            from datetime import datetime
             with open("logs/paper_trade_log.csv", "a") as f:
-                f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{meta.get('confidence'):.4f}\n")
+                f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{confidence:.4f}\n")
         else:
             result = kraken.place_order(pair, side="buy", volume=vol, leverage=leverage)
+            if not result:
+                print("[BLOCKED] Kraken rejected trade.")
+                return used_gbp
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
-            meta = {"model": self.model_version, "confidence": self.ai_scores.get(pair)}
+            meta = {"model": self.model_version, "confidence": confidence}
             log_trade(pair, "buy", vol, price, meta=meta)
-            from datetime import datetime
             with open("logs/trade_log.csv", "a") as f:
-                f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{meta.get('confidence'):.4f}\n")
+                f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{confidence:.4f}\n")
             db.set_state(f"cooldown_{pair}", time())
+            print(f"[EXECUTED] Buy placed for {pair} @ {price} (vol={vol})")
             return used_gbp + alloc_gbp
+
+        print(f"[EXECUTED] Paper buy for {pair} @ {price} (vol={vol})")
+        return used_gbp + alloc_gbp
 
     def check_stop_loss(self, pair):
         if pair not in self.open_positions:
