@@ -46,13 +46,8 @@ class PairDiscovery:
         self.min_volume_gbp = self.config.get("discovery.min_volume_24h_gbp", 100000)
         self.max_volatility = self.config.get("discovery.max_volatility", 0.15)
 
-        from train_pipeline import run_pipeline
-        try:
-            results = run_pipeline(conf_threshold=self.conf_threshold)
-        except Exception as e:
-            print(f"[ERROR] run_pipeline() failed: {e}")
-            results = []
-
+        results = {}  # Removed pipeline. Discovery now relies on external input
+        print("[DISCOVERY] run_pipeline disabled (legacy model code removed)")
 
         for pair, score in results.items():
             if get_24h_volume_gbp(pair) < min_vol_gbp:
