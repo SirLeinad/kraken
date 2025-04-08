@@ -5,6 +5,8 @@
 import os
 import json
 import time
+import traceback
+import inspect
 import pandas as pd
 from config import Config
 from telegram_notifications import *
@@ -17,6 +19,24 @@ from logger import log_trade_result
 from kraken_api import KrakenClient
 from ai_model import calculate_confidence
 from collections import defaultdict
+
+# DEBUG: Monkey-patch float subtraction to detect float - str bugs
+import builtins
+_real_sub = float.__sub__
+
+def safe_sub(a, b, label="unknown"):
+    try:
+        return float(a) - float(b)
+    except Exception as e:
+        print(f"[SAFE_SUB ERROR] {label}: {a} ({type(a)}), {b} ({type(b)}) → {e}")
+        return 0.0
+
+def safe_div(a, b, label="unknown"):
+    try:
+        return float(a) / float(b) if float(b) != 0 else 0.0
+    except Exception as e:
+        print(f"[SAFE_DIV ERROR] {label}: {a} / {b} → {e}")
+        return 0.0
 
 config = Config()
 kraken = KrakenClient()
@@ -484,6 +504,16 @@ class TradeStrategy:
         print(f"[ARCHIVE] Archived old trade history to {archive_path}")
 
     def execute(self):
+        def safe_subtract(a, b, *, label="unknown"):
+            try:
+                af = float(a)
+                bf = float(b)
+                return af - bf
+            except Exception as e:
+                print(f"[TYPE ERROR] Subtraction failed in {label}: {a}({type(a)}), {b}({type(b)}) → {e}")
+                traceback.print_stack()
+                return 0.0
+
         print('[STRATEGY] Starting trade checks...')
         used_gbp = 0.0
         report = []
@@ -553,7 +583,7 @@ class TradeStrategy:
                         entry_volume = float(pos.get("volume", 0))
                         current_price = float(current_price)
 
-                        gain = (current_price - entry_price) * entry_volume
+                        gain = (float(current_price) - float(entry_price)) * float(entry_volume)
                         emoji = "🟢" if gain >= 0 else "🔻"
                         pl_lines.append(f"{emoji} {pair}: {gain:+.2f} GBP")
                         net_gain += gain
