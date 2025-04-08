@@ -228,7 +228,7 @@ class TradeStrategy:
             json.dump(history[-100:], f, indent=2)
 
     def place_buy(self, pair, used_gbp):
-        now = time.time()
+        now = time()
         gbp_balance = float(self.balance.get('ZGBP', 0.0)) - used_gbp
         print(f"[BUY] Starting buy attempt for {pair}...")
         print(f"[BALANCE] Available GBP: {gbp_balance:.2f}")
@@ -262,7 +262,7 @@ class TradeStrategy:
         alloc_gbp = gbp_balance * (alloc_pct + scaling_factor * alloc_pct)
 
         print(f"[ALLOCATION] {pair} score={confidence:.2f} → allocation: £{alloc_gbp:.2f}")
-        alloc_quote = self.gbp_to_quote(pair, alloc_gbp, self.kraken)
+        alloc_quote = self.gbp_to_quote(pair, alloc_gbp, kraken)
         MAX_PAIR_EXPOSURE_GBP = 100
         vol = round(alloc_quote / price, 6)
 
@@ -283,8 +283,7 @@ class TradeStrategy:
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
-            meta = {"model": self.model_version, "confidence": confidence}
-            log_trade(pair, "buy", vol, price, meta=meta)
+            log_trade(pair, "buy", vol, price)
             with open("logs/paper_trade_log.csv", "a") as f:
                 f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{confidence:.4f}\n")
         else:
@@ -295,8 +294,7 @@ class TradeStrategy:
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
-            meta = {"model": self.model_version, "confidence": confidence}
-            log_trade(pair, "buy", vol, price, meta=meta)
+            log_trade(pair, "buy", vol, price)
             with open("logs/trade_log.csv", "a") as f:
                 f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{confidence:.4f}\n")
             db.set_state(f"cooldown_{pair}", time())
@@ -482,16 +480,18 @@ class TradeStrategy:
                 adjusted_conf = confidence * 0.9  # decay 10% if previous trade lost money
                 print(f"[DECAY] Adjusted confidence for {pair}: {confidence:.2f} → {adjusted_conf:.2f}")
                 confidence = adjusted_conf
-
             try:
                 print(f'[CHECK] Evaluating stop-loss for {pair}')
                 self.check_stop_loss(pair)
+                
                 if self.evaluate_buy_signal(pair):
+                    print(f"[CALL] place_buy() being called for {pair}")
                     used_gbp = self.place_buy(pair, used_gbp)
                     report.append(f"✅ Buy: {pair}")
                 else:
-                    report.append(f"⏸ No signal: {pair}")  # suppressed for cleaner summary
+                    report.append(f"⏸ No signal: {pair}")
             except Exception as e:
+                print(f"[ERROR] Exception during strategy execution for {pair}: {e}")
                 report.append(f"❌ Error {pair}: {e}")
 
         if report:

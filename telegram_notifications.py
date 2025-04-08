@@ -38,7 +38,7 @@ def notify(msg: str, key: str = None, priority: str = "medium"):
     try:
         # Suppress if last send failure was < 10 minutes ago
         last_fail = db.get_state("last_notify_failure")
-        if last_fail and (time.time() - float(last_fail)) < 600:
+        if last_fail and (time() - float(last_fail)) < 600:
             print("[TELEGRAM] Skipping due to recent send failure.")
             return False
         success = send_telegram(msg)
@@ -47,7 +47,7 @@ def notify(msg: str, key: str = None, priority: str = "medium"):
     except Exception as e:
         import traceback
         print(f"[TELEGRAM] EXCEPTION: {e}\n" + traceback.format_exc())
-        db.set_state("last_notify_failure", time.time())
+        db.set_state("last_notify_failure", time())
         return False
 
 # --- Notification Types ---
