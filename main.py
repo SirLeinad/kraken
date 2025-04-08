@@ -1,6 +1,6 @@
 # File: main.py
 
-print("[DEBUG] Loaded main.py")
+#print("[DEBUG] Loaded main.py")
 
 import time
 import datetime
@@ -8,7 +8,7 @@ import os
 import sys
 import threading
 
-print("[DEBUG] main.py starting")
+#print("[DEBUG] main.py starting")
 
 from pathlib import Path
 from config import Config
@@ -88,10 +88,10 @@ def run_bot():
         notify(f"{USER}: Kraken AI Bot started. Live trading enabled.", key="startup", priority="high")
         print("[INFO] Live Trading Enabled, Bot Started")
 
-    print("[DEBUG] After notify, before strategy")
+    #print("[DEBUG] After notify, before strategy")
     from strategy import TradeStrategy
     strategy = TradeStrategy()
-    print("[DEBUG] Strategy object created")
+    #print("[DEBUG] Strategy object created")
 
     while True:
         start_time = time.time()

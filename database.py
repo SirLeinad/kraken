@@ -1,6 +1,6 @@
 # File: database.py
 
-print("[DEBUG] Loaded database.py")
+#print("[DEBUG] Loaded database.py")
 
 import sqlite3
 import time

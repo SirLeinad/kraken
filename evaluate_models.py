@@ -1,6 +1,6 @@
 # File: evaluate_models.py
 
-print("[DEBUG] Loaded evaluate_models.py")
+#print("[DEBUG] Loaded evaluate_models.py")
 
 import json
 from collections import defaultdict

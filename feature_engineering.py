@@ -1,4 +1,4 @@
-print("[DEBUG] Loaded feature_engineering.py")
+#print("[DEBUG] Loaded feature_engineering.py")
 
 import pandas as pd
 
@@ -20,16 +20,24 @@ def engineer_features_from_ohlcv(df):
     try:
         features["rsi"] = compute_rsi(df)
     except Exception as e:
-        errors.append(f"rsi: {e}")
+        print(f"[RSI FAIL] {e}")
+        raise
+
 
     if not features:
         raise ValueError("❌ No features could be engineered.")
 
     df_feat = df.copy()
+
     for name, series in features.items():
         df_feat[name] = series
 
     df_feat = df_feat.dropna()
+
+    if "close" not in df_feat.columns:
+        print(f"[ERROR] 'close' missing after dropna(). Columns: {df_feat.columns.tolist()}")
+        print(df_feat.head(3).to_string())
+        raise ValueError("❌ 'close' column dropped unexpectedly")
 
     X = df_feat[list(features.keys())]
     y = (df_feat["close"].shift(-1) > df_feat["close"]).astype(int)
@@ -44,6 +52,10 @@ def engineer_features_from_ohlcv(df):
     return X, y
 
 def compute_rsi(df: pd.DataFrame, period: int = 14) -> pd.Series:
+    if "close" not in df.columns:
+        print(f"[RSI] ERROR: 'close' column missing in input to compute_rsi(). Columns: {df.columns.tolist()}")
+        raise KeyError("Missing 'close' in compute_rsi input")
+
     delta = df["close"].diff()
     gain = delta.where(delta > 0, 0).rolling(window=period).mean()
     loss = -delta.where(delta < 0, 0).rolling(window=period).mean()

@@ -1,4 +1,4 @@
-print("[DEBUG] Loaded train_controller.py")
+#print("[DEBUG] Loaded train_controller.py")
 
 from pathlib import Path
 from train_model_from_backtest import train_model

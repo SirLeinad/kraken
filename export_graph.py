@@ -1,4 +1,4 @@
-print("[DEBUG] Loaded export_graph.py")
+#print("[DEBUG] Loaded export_graph.py")
 
 import pandas as pd
 import matplotlib.pyplot as plt

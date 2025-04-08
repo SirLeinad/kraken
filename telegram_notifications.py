@@ -1,6 +1,6 @@
 # File: telegram_notifications.py
 
-print("[DEBUG] Loaded telegram_notifications.py")
+#print("[DEBUG] Loaded telegram_notifications.py")
 
 import time
 import sys

@@ -1,6 +1,6 @@
 # File: ai_model.py
 
-print("[DEBUG] Loaded ai_model.py")
+#print("[DEBUG] Loaded ai_model.py")
 
 import pandas as pd
 import numpy as np
@@ -8,6 +8,7 @@ import joblib
 from kraken_api import KrakenClient
 from config import Config
 import warnings
+import xgboost as xgb
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 
@@ -30,10 +31,19 @@ if USE_ML_MODEL:
 def calculate_confidence(pair: str, interval: int = 60, window: int = 30) -> float:
     try:
         ohlc = kraken.get_ohlc(pair, interval=interval)
+
+        #print(f"[TRACE] Raw OHLC df for {pair} → shape: {ohlc.shape}, columns: {ohlc.columns.tolist()}")
+        #print(ohlc.head(3).to_string())
+
         df = ohlc.tail(window).copy()
 
-        if df.empty or "close" not in df.columns:
-            print(f"[ERROR] Empty or missing 'close' column for {pair}. df.columns: {df.columns.tolist()}")
+        if df.empty:
+            print(f"[ERROR] DataFrame empty for {pair} in calculate_confidence()")
+            return 0.0
+
+        if "close" not in df.columns:
+            print(f"[ERROR] Missing 'close' column for {pair}. Columns: {df.columns.tolist()}")
+            print(df.head(3).to_string())
             return 0.0
 
         if len(df) < 10:
@@ -55,20 +65,18 @@ def calculate_confidence(pair: str, interval: int = 60, window: int = 30) -> flo
 
             try:
                 latest = df.iloc[-1].copy()
-                latest["rsi"] = compute_rsi(df["close"]).iloc[-1]
+                latest["rsi"] = compute_rsi(df).iloc[-1]
                 latest["sma"] = compute_sma(df["close"]).iloc[-1]
             except Exception as e:
                 print(f"[ERROR] Feature computation failed for {pair}: {e}")
                 return 0.0
 
-            features = pd.DataFrame([{
-                "rsi": latest["rsi"],
-                "sma": latest["sma"]
-            }])
+            features = pd.DataFrame([[latest["sma"], latest["rsi"]]], columns=["sma", "rsi"])
 
             if pd.isna(latest["rsi"]) or pd.isna(latest["sma"]):
                 return 0.0
 
+            features = xgb.DMatrix(features)  # optional for performance tuning
             proba = MODEL.predict_proba(features)[0][1]  # prob of buy
             return round(float(proba), 4)
 

@@ -1,6 +1,6 @@
 # File: telegram_bot.py
 
-print("[DEBUG] Loaded telegram_bot.py")
+#print("[DEBUG] Loaded telegram_bot.py")
 
 import requests
 import time

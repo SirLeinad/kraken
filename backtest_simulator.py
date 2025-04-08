@@ -1,6 +1,6 @@
 # File: backtest_simulator.py (Upgraded with live trade simulation)
 
-print("[DEBUG] Loaded backtest_simulator.py")
+#print("[DEBUG] Loaded backtest_simulator.py")
 
 import argparse
 import pandas as pd

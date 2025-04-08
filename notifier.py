@@ -1,6 +1,6 @@
 # File: notifier.py
 
-print("[DEBUG] Loaded notifier.py")
+#print("[DEBUG] Loaded notifier.py")
 
 import requests
 from config import Config

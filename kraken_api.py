@@ -1,6 +1,6 @@
 # File: kraken_api.py
 
-print("[DEBUG] Loaded kraken_api.py")
+#print("[DEBUG] Loaded kraken_api.py")
 
 import krakenex
 from pykrakenapi import KrakenAPI
@@ -15,9 +15,9 @@ PUBLIC_CALL_INTERVAL = 1.1
 _last_public_call = 0
 _lock = threading.Lock()
 
-print("[DEBUG] Initializing KrakenClient...")
+#print("[DEBUG] Initializing KrakenClient...")
 config = Config()
-print("[DEBUG] Config loaded.")
+#print("[DEBUG] Config loaded.")
 
 warnings.filterwarnings("ignore", message="'T' is deprecated")
 
@@ -122,6 +122,11 @@ class KrakenClient:
 
             df["time"] = pd.to_datetime(df["time"], unit="s")
             df.set_index("time", inplace=True)
+
+            if df.empty or "close" not in df.columns:
+                print(f"[ERROR] get_ohlc(): malformed DataFrame for {pair}. Columns: {df.columns.tolist()}")
+            else:
+                print(f"[DEBUG] get_ohlc({pair}) returned {len(df)} rows")
 
             return df
 
