@@ -321,7 +321,8 @@ class TradeStrategy:
             print(f"[ERROR] Failed to fetch price for {pair}: {e}")
             return
 
-        price = self.kraken.get_ticker_price(pair)
+        ticker = kraken.get_ticker(pair)
+        price = float(ticker["c"][0])  # 'c' = last close [price, lot volume]
         entry_price = float(self.open_positions[pair]['price'])
         vol = float(self.open_positions[pair]['volume'])
 
