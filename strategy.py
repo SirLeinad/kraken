@@ -143,6 +143,14 @@ class TradeStrategy:
             print(f"[WARN] Missing entry price for {pair}. Skipping gain calc.")
             return
 
+        try:
+            entry_price = float(entry_price)
+            exit_price = float(exit_price)
+            volume = float(volume)
+        except Exception as e:
+            print(f"[ERROR] Float cast failed in log_trade_profit({pair}): {e}")
+            return
+
         raw_gain = (exit_price - entry_price) * volume
         gain = self.convert_to_gbp(pair, raw_gain, kraken)
 
@@ -318,28 +326,17 @@ class TradeStrategy:
             return
 
         try:
-            current_price = self.fetch_latest_price(pair)
+            current_price = float(self.fetch_latest_price(pair) or 0)
+            entry_price = float(self.open_positions[pair].get('price', 0) or 0)
+            vol = float(self.open_positions[pair].get('volume', 0) or 0)
         except Exception as e:
-            print(f"[ERROR] Failed to fetch price for {pair}: {e}")
+            print(f"[ERROR] Type cast failed in stop_loss({pair}): {e}")
             return
 
-        ticker = kraken.get_ticker(pair)
-        price = float(ticker["c"][0][0]) if isinstance(ticker["c"][0], list) else float(ticker["c"][0])
-        entry_price = float(self.open_positions[pair].get('price', 0) or 0)
-        vol = float(self.open_positions[pair].get('volume', 0) or 0)
-
-
-        if entry_price is None or current_price is None:
-            print(f"[WARN] Skipping stop-loss check for {pair} due to missing price.")
+        if entry_price == 0 or current_price == 0:
+            print(f"[WARN] Invalid price data for {pair}. Skipping stop-loss.")
             return
 
-        if entry_price is None:
-            print(f"[WARN] Missing entry price for {pair}. Skipping gain_pct calc.")
-            return
-        
-        if entry_price is None or entry_price == 0:
-            print(f"[WARN] Missing or invalid entry price for {pair}. Skipping gain_pct calc.")
-            return
         gain_pct = (current_price - entry_price) / entry_price
         loss_pct = -gain_pct
         should_exit = False
@@ -357,16 +354,18 @@ class TradeStrategy:
                 score = calculate_confidence(pair)
 
         stop_loss_pct, take_profit_pct = self.get_dynamic_thresholds(pair)
-        if (price - entry_price) / entry_price <= -stop_loss_pct:
+
+        if (current_price - entry_price) / entry_price <= -stop_loss_pct:
             notify(f"{USER}: 🔻 Stop-loss hit for {pair}. Selling...", priority="high")
             self.place_sell(pair, reason="stop_loss")
-        elif (price - entry_price) / entry_price >= take_profit_pct:
+
+        elif (current_price - entry_price) / entry_price >= take_profit_pct:
             notify(f"{USER}: 🟢 Take-profit hit for {pair}. Selling...", priority="high")
             self.place_sell(pair, reason="take_profit")
+
         elif (score := self.ai_scores.get(pair)) is not None and score < EXIT_AI_SCORE:
             notify(f"{USER}: ⚠️ AI confidence dropped below threshold for {pair}. Selling...", priority="medium")
             self.place_sell(pair, reason="low_ai_conf")
-
 
         if should_exit:
             if PAPER_MODE:
@@ -386,9 +385,9 @@ class TradeStrategy:
                     print(f"[ERROR] Failed to place SELL order for {pair}: {e}")
                     result = {"error": str(e)}
                 self.log_trade_profit(pair, entry_price, current_price, vol, reason)
+
             del self.open_positions[pair]
             db.remove_position(pair)
-
             self.trade_history[pair] = {
                 "pnl": round((current_price - entry_price) * vol, 6),
                 "timestamp": datetime.utcnow().isoformat(),
@@ -486,14 +485,21 @@ class TradeStrategy:
         used_gbp = 0.0
         report = []
         for pair in self.eligible_pairs():
+            print(f"[DEBUG] Starting eval for: {pair}")
             confidence = self.ai_scores.get(pair)
             last_trade = self.trade_history.get(pair, {})
-            last_pnl = last_trade.get("pnl", 0)
+            
+            try:
+                last_pnl = float(last_trade.get("pnl", 0) or 0)
+            except Exception as e:
+                print(f"[ERROR] Bad pnl in {pair}: {last_trade.get('pnl')} — {e}")
+                last_pnl = 0.0
 
             if confidence and last_pnl < 0:
-                adjusted_conf = confidence * 0.9  # decay 10% if previous trade lost money
+                adjusted_conf = confidence * 0.9
                 print(f"[DECAY] Adjusted confidence for {pair}: {confidence:.2f} → {adjusted_conf:.2f}")
                 confidence = adjusted_conf
+
             try:
                 print(f'[CHECK] Evaluating stop-loss for {pair}')
                 self.check_stop_loss(pair)
