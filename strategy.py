@@ -132,7 +132,7 @@ class TradeStrategy:
                 ts = data.get("last_updated")
                 if not ts:
                     return True
-                last_time = datetime.fromisoformat(ts)
+                last_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
                 return (datetime.utcnow() - last_time) > timedelta(hours=self.discovery_interval)
         except Exception as e:
             print(f"[DISCOVERY] Timestamp check failed: {e}")
@@ -152,9 +152,9 @@ class TradeStrategy:
         log_trade_result(
             pair=pair,
             action="buy",
-            volume=vol,
-            entry_price=float(entry),
-            exit_price=float(exit),
+            volume=volume,
+            entry_price=float(entry_price),
+            exit_price=float(exit_price),
             pnl=exit_price - entry_price,
             model=self.model_version,
             confidence=self.ai_scores.get(pair)
@@ -534,13 +534,24 @@ class TradeStrategy:
                 pl_lines = []
                 net_gain = 0.0
                 for pair, pos in self.open_positions.items():
-                    current_price = self.fetch_latest_price(pair)
-                    entry_price = float(pos.get("price", 0))
-                    entry_volume = float(pos.get("volume", 0))
-                    gain = (current_price - entry_price) * entry_volume
-                    net_gain += gain
-                    emoji = "🟢" if gain >= 0 else "🔻"
-                    pl_lines.append(f"{emoji} {pair}: {gain:+.2f} GBP")
+                    try:
+                        current_price = self.fetch_latest_price(pair)
+                        if current_price is None:
+                            print(f"[WARN] Missing current price for {pair}")
+                            continue
+
+                        entry_price = float(pos.get("price", 0))
+                        entry_volume = float(pos.get("volume", 0))
+                        current_price = float(current_price)
+
+                        gain = (current_price - entry_price) * entry_volume
+                        emoji = "🟢" if gain >= 0 else "🔻"
+                        pl_lines.append(f"{emoji} {pair}: {gain:+.2f} GBP")
+                        net_gain += gain
+
+                    except Exception as e:
+                        print(f"[ERROR] P&L calc failed for {pair}: {e}")
+
                 pl_lines.append(f"Total P&L: {net_gain:+.2f} GBP")
                 hourly_pl_notification(USER, pl_lines)
                 

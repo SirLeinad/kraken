@@ -23,7 +23,7 @@
   },
   "model_staleness_days": 7,
   "model_version": "v1.0",
-  "paper_trading": false,
+  "paper_trading": true,
   "strategy": {
     "bot_enabled": true,
     "bull_threshold": 0.6,
