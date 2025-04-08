@@ -34,7 +34,7 @@
     "hourly_pl_report": true,
     "initial_budget_gbp": 500,
     "max_open_positions": 4,
-    "min_confidence": 0.75,
+    "min_confidence": 0.6,
     "pair_trade_cooldown_sec": 3600,
     "stop_loss_pct": 0.02,
     "take_profit_pct": 0.05

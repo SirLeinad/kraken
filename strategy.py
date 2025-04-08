@@ -261,9 +261,12 @@ class TradeStrategy:
         existing_vol = self.open_positions.get(pair, {}).get("volume", 0)
         max_vol = (MAX_PAIR_EXPOSURE_GBP / price)
 
-        if len(self.open_positions) >= config.get("strategy.max_open_positions", 4):
-            notify(f"{USER}: Max open positions reached. Skipping {pair}.", key=f"maxpos_{pair}", priority="medium")
+        excluded = set(config.get("trading_rules.excluded_pairs", []))
+        active_positions = [p for p in self.open_positions if p not in excluded]
+        if len(active_positions) >= config.get("strategy.max_open_positions", 4):
+            notify(f"{USER}: Max open positions reached (excluding excluded pairs).")
             return used_gbp
+
 
         if PAPER_MODE:
             self.open_positions[pair] = {'price': price, 'volume': vol}
