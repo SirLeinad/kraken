@@ -189,8 +189,8 @@ def handle_command(text):
     elif text == "/positions":
         msg = ["📊 Open Positions:"]
         for pair, pos in STRATEGY.open_positions.items():
-            entry = pos['price']
-            volume = pos['volume']
+            entry = float(pos.get("price", 0))
+            volume = float(pos.get("volume", 0))
             curr = STRATEGY.fetch_latest_price(pair)
             raw_gain = (curr - entry) * volume
             gbp_gain = STRATEGY.convert_to_gbp(pair, raw_gain, kraken)

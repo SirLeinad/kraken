@@ -192,7 +192,9 @@ class TradeStrategy:
     def fetch_latest_price(self, pair):
         try:
             ticker = kraken.get_ticker(pair)
-            return float(ticker['c'].iloc[0][0])
+            close = ticker["c"].iloc[0]
+            price = float(close[0]) if isinstance(close, list) else float(close)
+            return price
         except Exception as e:
             print(f"[ERROR] fetch_latest_price({pair}): {e}")
             return None
@@ -322,9 +324,10 @@ class TradeStrategy:
             return
 
         ticker = kraken.get_ticker(pair)
-        price = float(ticker["c"][0])  # 'c' = last close [price, lot volume]
-        entry_price = float(self.open_positions[pair]['price'])
-        vol = float(self.open_positions[pair]['volume'])
+        price = float(ticker["c"][0][0]) if isinstance(ticker["c"][0], list) else float(ticker["c"][0])
+        entry_price = float(self.open_positions[pair].get('price', 0) or 0)
+        vol = float(self.open_positions[pair].get('volume', 0) or 0)
+
 
         if entry_price is None or current_price is None:
             print(f"[WARN] Skipping stop-loss check for {pair} due to missing price.")
@@ -532,7 +535,9 @@ class TradeStrategy:
                 net_gain = 0.0
                 for pair, pos in self.open_positions.items():
                     current_price = self.fetch_latest_price(pair)
-                    gain = (current_price - pos['price']) * pos['volume']
+                    entry_price = float(pos.get("price", 0))
+                    entry_volume = float(pos.get("volume", 0))
+                    gain = (current_price - entry_price) * entry_volume
                     net_gain += gain
                     emoji = "🟢" if gain >= 0 else "🔻"
                     pl_lines.append(f"{emoji} {pair}: {gain:+.2f} GBP")
