@@ -71,13 +71,12 @@ def calculate_confidence(pair: str, interval: int = 60, window: int = 30) -> flo
                 print(f"[ERROR] Feature computation failed for {pair}: {e}")
                 return 0.0
 
-            features = pd.DataFrame([[latest["sma"], latest["rsi"]]], columns=["sma", "rsi"])
-
             if pd.isna(latest["rsi"]) or pd.isna(latest["sma"]):
                 return 0.0
 
-            features = xgb.DMatrix(features)  # optional for performance tuning
-            proba = MODEL.predict_proba(features)[0][1]  # prob of buy
+            features = pd.DataFrame([[latest["sma"], latest["rsi"]]], columns=["sma", "rsi"])
+            features = features.astype(np.float32)  # ✅ match model device type
+            proba = MODEL.predict_proba(features)[0][1]  # ✅ Input must be DataFrame
             return round(float(proba), 4)
 
         # fallback to original rule-based

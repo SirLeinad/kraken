@@ -195,10 +195,20 @@ class TradeStrategy:
     def evaluate_buy_signal(self, pair):
         score = calculate_confidence(pair)
         self.ai_scores[pair] = score
+
+        print(f"[CONFIDENCE] {pair} → {score:.4f}")
+        threshold = config.get('strategy.bull_threshold')
+        print(f"[THRESHOLD] {pair} → requires score > {threshold}")
+
+        from datetime import datetime
+        with open("logs/ai_confidence_log.csv", "a") as f:
+            f.write(f"{datetime.utcnow()},{pair},{score:.4f},{threshold}\n")
+
+        print(f"[THRESHOLD] {pair} → requires score > {threshold}")
         db_log = f"AI_SCORE|{pair}|{score:.4f}"
         with open("logs/ai_scores.log", "a") as f:
             f.write(f"{db_log}\n")
-        return score > config.get('strategy.bull_threshold')
+        return score > threshold
 
     def store_top_ai_scores(self):
         top_scores = sorted(self.ai_scores.items(), key=lambda x: x[1], reverse=True)[:5]
@@ -226,7 +236,6 @@ class TradeStrategy:
         if last_time and (now - last_time) < self.pair_trade_cooldown:
             notify(f"{USER}: Skipping {pair} — trade cooldown active.", key=f"cooldown_{pair}", priority="low")
             return used_gbp
-
 
         price = self.fetch_latest_price(pair)
         confidence = self.ai_scores.get(pair, 0.5)

@@ -125,8 +125,8 @@ class KrakenClient:
 
             if df.empty or "close" not in df.columns:
                 print(f"[ERROR] get_ohlc(): malformed DataFrame for {pair}. Columns: {df.columns.tolist()}")
-            else:
-                print(f"[DEBUG] get_ohlc({pair}) returned {len(df)} rows")
+            #else:
+            #    print(f"[DEBUG] get_ohlc({pair}) returned {len(df)} rows")
 
             return df
 

@@ -32,7 +32,13 @@ class PairDiscovery:
         last_run = db.get_state("discovery_last_run")
         interval = self.config.get("discovery.interval_hours", 4) * 3600
 
-        if last_run and (time() - float(last_run)) < interval:
+        if last_run is None:
+            print("[DISCOVERY] No last_run found — forcing discovery refresh.")
+            force_discovery = True
+        else:
+            force_discovery = False
+
+        if not force_discovery and (time() - float(last_run)) < interval:
             print("[DISCOVERY] Skipped: interval not reached.")
             return []
 

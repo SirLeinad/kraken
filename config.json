@@ -40,10 +40,10 @@
     "low_sec": 3600
   },
   "discovery": {
-    "enabled": false,
-    "interval_hours": 4,
+    "enabled": true,
+    "interval_hours": 2,
     "min_volume_24h_gbp": 100000,
-    "max_active_pairs": 5,
+    "max_active_pairs": 2,
     "max_volatility": 0.15
   },
   "margin": {
