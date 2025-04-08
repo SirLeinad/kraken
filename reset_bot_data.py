@@ -24,6 +24,15 @@ def reset_database():
     else:
         print("⚠️ No DB file found.")
 
+def delete_keys_like(pattern: str):
+    if os.path.exists(DB_FILE):
+        conn = sqlite3.connect(DB_FILE)
+        c = conn.cursor()
+        c.execute("DELETE FROM state WHERE key LIKE ?", (pattern,))
+        conn.commit()
+        conn.close()
+        print(f"[RESET] ✅ Removed keys like '{pattern}'")
+
 def clear_logs():
     if os.path.exists(LOG_DIR):
         files = glob.glob(f"{LOG_DIR}/*")
@@ -45,3 +54,7 @@ if __name__ == "__main__":
     reset_database()
     clear_logs()
     reset_discovery()
+    delete_keys_like("last_sent_buy_%")
+    delete_keys_like("cooldown_%")
+
+

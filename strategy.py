@@ -77,11 +77,16 @@ class TradeStrategy:
         else:
             print("[DISCOVERY] Skipped: discovery.enabled = false")
 
-        # Auto-clean stale paper trades if switching to live
-        if not PAPER_MODE:
+        prev_mode = db.get_state("paper_mode")
+        if str(prev_mode).lower() == "true" and not PAPER_MODE:
+            print("[INFO] Switching from PAPER → LIVE. Wiping paper trades.")
             db.clear_all_positions()
             self.open_positions = {}
-            print("[INFO] Cleared all old paper positions on live start.")
+        elif str(prev_mode).lower() == "false" and PAPER_MODE:
+            print("[INFO] Switching from LIVE → PAPER. Resetting for paper mode.")
+            db.clear_all_positions()
+            self.open_positions = {}
+        db.set_state("paper_mode", str(PAPER_MODE).lower())
 
     def convert_to_gbp(self, pair: str, value: float, kraken) -> float:
         """
@@ -288,9 +293,11 @@ class TradeStrategy:
                 f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{confidence:.4f}\n")
         else:
             result = kraken.place_order(pair, side="buy", volume=vol, leverage=leverage)
-            if not result:
-                print("[BLOCKED] Kraken rejected trade.")
+            if not result or result.get("error"):
+                print(f"[BLOCKED] Kraken rejected trade: {result.get('error')}")
+                notify(f"{USER}: ❌ Kraken rejected trade for {pair}. Reason: {result.get('error')}")
                 return used_gbp
+
             self.open_positions[pair] = {'price': price, 'volume': vol}
             db.save_position(pair, price, vol)
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
@@ -314,8 +321,9 @@ class TradeStrategy:
             print(f"[ERROR] Failed to fetch price for {pair}: {e}")
             return
 
-        entry_price = self.open_positions[pair]['price']
-        vol = self.open_positions[pair]['volume']
+        price = self.kraken.get_ticker_price(pair)
+        entry_price = float(self.open_positions[pair]['price'])
+        vol = float(self.open_positions[pair]['volume'])
 
         if entry_price is None or current_price is None:
             print(f"[WARN] Skipping stop-loss check for {pair} due to missing price.")

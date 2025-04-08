@@ -67,7 +67,7 @@ class Database:
         c = self.conn.cursor()
         c.execute("SELECT pair, price, volume FROM positions")
         rows = c.fetchall()
-        return {pair: {'price': price, 'volume': volume} for pair, price, volume in rows}
+        return {pair: {'price': float(price), 'volume': float(volume)} for pair, price, volume in rows}
 
     def remove_position(self, pair):
         c = self.conn.cursor()

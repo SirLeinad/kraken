@@ -38,7 +38,7 @@ class PairDiscovery:
         else:
             force_discovery = False
 
-        if not force_discovery and (time() - float(last_run)) < interval:
+        if not force_discovery and (time.time() - float(last_run)) < interval:
             print("[DISCOVERY] Skipped: interval not reached.")
             return []
 

@@ -163,19 +163,26 @@ class KrakenClient:
                 df.set_index("timestamp", inplace=True)
                 return df[["open", "high", "low", "close", "volume", "count"]]
 
-    def place_order(self, pair, side, volume, ordertype="market", leverage=None, reduce_only=False):
+    def place_order(self, pair, side, volume, ordertype="market"):
+        from config import Config
+        config = Config()
+        leverage_pairs = config.get("margin.leverage_by_pair", {})
+
         order = {
             'pair': pair,
             'type': side,
             'ordertype': ordertype,
             'volume': str(volume),
         }
-        if leverage:
-            order['leverage'] = str(leverage)
-        if reduce_only:
-            order['oflags'] = 'reduceonly'
+
+        # Apply leverage only if explicitly defined
+        if pair in leverage_pairs:
+            order['leverage'] = str(leverage_pairs[pair])
+            # reduce_only removed for opening trades
+        # else: spot trade — no leverage keys added
 
         return self.api.query_private('AddOrder', order)
+
 
     def convert_currency(self, from_cur, to_cur, volume):
         pair = f"{from_cur}/{to_cur}"
