@@ -3,11 +3,11 @@
 #print("[DEBUG] Loaded discovery.py")
 
 import json
+import time
 from datetime import datetime
 from pathlib import Path
 from config import Config
 from database import Database
-from time import time
 from kraken_api import KrakenClient  # Assumes this returns OHLCV DataFrame
 from utils.data_loader import load_ohlcv_csv
 
@@ -69,7 +69,7 @@ class PairDiscovery:
             self.discovered = dict(top_pairs)
             print(f"[DISCOVERY] Trimmed to top {max_pairs} pairs")
 
-        db.set_state("discovery_last_run", time())
+        db.set_state("discovery_last_run", time.time())
         self.save()
         return self.discovered
 

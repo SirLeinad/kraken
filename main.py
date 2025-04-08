@@ -121,10 +121,11 @@ def run_bot():
         from discovery import PairDiscovery
         discovery = PairDiscovery()
         now = time.time()
-        if time.time() - last_discovery >= INTERVAL:
+
+        if now - last_discovery >= INTERVAL:
             try:
-                PairDiscovery().get_eligible_pairs()
-                db.set_state("last_discovery", time())  # <-- This line updates DB
+                discovery.get_eligible_pairs()
+                db.set_state("last_discovery", now)
             except Exception as e:
                 print(f"[ERROR] Discovery failed: {e}")
 

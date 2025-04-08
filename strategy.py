@@ -4,12 +4,12 @@
 
 import os
 import json
+import time
 import pandas as pd
 from config import Config
 from telegram_notifications import *
 from database import Database
 from exporter import log_trade
-from time import sleep, time
 from pathlib import Path
 from collections import defaultdict
 from datetime import datetime, timedelta
@@ -228,7 +228,7 @@ class TradeStrategy:
             json.dump(history[-100:], f, indent=2)
 
     def place_buy(self, pair, used_gbp):
-        now = time()
+        now = time.time()
         gbp_balance = float(self.balance.get('ZGBP', 0.0)) - used_gbp
         print(f"[BUY] Starting buy attempt for {pair}...")
         print(f"[BALANCE] Available GBP: {gbp_balance:.2f}")
@@ -297,7 +297,7 @@ class TradeStrategy:
             log_trade(pair, "buy", vol, price)
             with open("logs/trade_log.csv", "a") as f:
                 f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{confidence:.4f}\n")
-            db.set_state(f"cooldown_{pair}", time())
+            db.set_state(f"cooldown_{pair}", time.time())
             print(f"[EXECUTED] Buy placed for {pair} @ {price} (vol={vol})")
             return used_gbp + alloc_gbp
 
@@ -428,7 +428,9 @@ class TradeStrategy:
             for pair, pos in self.open_positions.items():
                 try:
                     current_price = self.fetch_latest_price(pair)
-                    gain = (current_price - pos['price']) * pos['volume']
+                    entry_price = float(pos['price'])
+                    entry_volume = float(pos['volume'])
+                    gain = (current_price - entry_price) * entry_volume
                     emoji = "🟢" if gain >= 0 else "🔻"
                     lines.append(f"{emoji} {pair}: {gain:+.2f} GBP")
                 except:
