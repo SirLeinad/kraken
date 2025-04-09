@@ -60,8 +60,9 @@ class Database:
 
     def save_position(self, pair, price, volume):
         c = self.conn.cursor()
-        c.execute("REPLACE INTO positions (pair, price, volume, confidence, timestamp) VALUES (?, ?, ?, ?, ?)", (pair, price, volume, confidence, time.ctime()))
-        self.conn.commit()
+        c.execute(
+            "REPLACE INTO positions (pair, price, volume, confidence, timestamp) VALUES (?, ?, ?, ?, ?)", (pair, price, volume, confidence, time.ctime())
+        )
 
     def load_positions(self):
         c = self.conn.cursor()

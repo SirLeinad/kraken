@@ -89,13 +89,10 @@ class TradeStrategy:
         print(f"[STRATEGY] Pairs to evaluate: {sorted(self.focus_pairs)}")
 
         if config.get("discovery.enabled", True):
-            if self.should_refresh_discovery():
-                from discovery import PairDiscovery
-                discovery = PairDiscovery()
-                discovery.get_eligible_pairs()
-                print("[DISCOVERY] Discovery refreshed due to interval.")
-            else:
-                print("[DISCOVERY] Skipped: interval not reached.")
+            from discovery import PairDiscovery
+            discovery = PairDiscovery()
+            discovery.run_discovery()
+            print("[DISCOVERY] Discovery executed.")
         else:
             print("[DISCOVERY] Skipped: discovery.enabled = false")
 
@@ -325,7 +322,7 @@ class TradeStrategy:
 
         if PAPER_MODE:
             self.open_positions[pair] = {'price': price, 'volume': vol}
-            db.save_position(pair, price, vol)
+            db.save_position(pair, price, vol, confidence)
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
             log_trade(pair, "buy", vol, price)
             with open("logs/paper_trade_log.csv", "a") as f:
@@ -355,7 +352,7 @@ class TradeStrategy:
                 return used_gbp
 
             self.open_positions[pair] = {'price': price, 'volume': vol}
-            self.db.save_position(pair, price, vol)
+            self.db.save_position(pair, price, vol, confidence)
             self.open_positions[pair] = {
                 "price": price,
                 "volume": vol,
