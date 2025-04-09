@@ -18,9 +18,15 @@ from config import Config
 from database import Database
 from dashboard import send_daily_summary, show_balance, show_open_positions, show_trade_history
 from telegram_notifications import *
+from kraken_api import KrakenClient
+from strategy import TradeStrategy
 
+api_key = config.get("kraken.api_key")
+api_secret = config.get("kraken.api_secret")
 config = Config()
 db = Database()
+kraken = KrakenClient()
+strategy = TradeStrategy(kraken=kraken)
 loop_interval = config.get("strategy.loop_interval_sec", default=60)
 INTERVAL = config.get("discovery.interval_hours") * 3600
 USER = config.get("user")
@@ -91,11 +97,6 @@ def run_bot():
     else:
         notify(f"{USER}: Kraken AI Bot started. Live trading enabled.", key="startup", priority="high")
         print("[INFO] Live Trading Enabled, Bot Started")
-
-    #print("[DEBUG] After notify, before strategy")
-    from strategy import TradeStrategy
-    strategy = TradeStrategy()
-    #print("[DEBUG] Strategy object created")
 
     while True:
         start_time = time.time()

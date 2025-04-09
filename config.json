@@ -23,11 +23,11 @@
     "buy_allocation_pct": 0.10,
     "confidence_interval": 1,
     "loop_interval_sec": 60,
-    "exit_below_ai_score": 0.3,
+    "exit_below_ai_score": 0.5,
     "hourly_pl_report": true,
     "initial_budget_gbp": 500,
     "max_open_positions": 4,
-    "min_confidence": 0.6,
+    "min_confidence": 0.5,
     "pair_trade_cooldown_sec": 3600,
     "stop_loss_pct": 0.02,
     "take_profit_pct": 0.05

@@ -91,6 +91,18 @@ class KrakenClient:
 
         return df
 
+    def get_open_positions(self):
+        try:
+            result = self.api.query_private("OpenPositions")
+            if result.get("error"):
+                print(f"[KRAKEN] OpenPositions error: {result['error']}")
+                return {}
+
+            return result.get("result", {})
+        except Exception as e:
+            print(f"[KRAKEN] Exception in get_open_positions: {e}")
+            return {}
+
     def get_ticker(self, pair):
         self._rate_limit()
         return self.k.get_ticker_information(pair)

@@ -56,7 +56,7 @@ BUY_ALLOCATION_PCT = config.get("strategy.buy_allocation_pct", 0.2)
 SCORE_HISTORY_FILE = "logs/ai_scores_history.json"
 
 class TradeStrategy:
-    def __init__(self):
+    def __init__(self, kraken):
         self.balance = kraken.get_balance()
         self.open_positions = db.load_positions()
         self.ai_scores = defaultdict(float)
@@ -68,6 +68,7 @@ class TradeStrategy:
         self.trade_history_archive_dir = Path("data/trade_history_archive")
         self.trade_history = self.load_trade_history()
         self.initial_budget = config.get("strategy.initial_budget_gbp", 500)
+        self.kraken = kraken
 
         try:
             with open("data/discovered_pairs.json") as f:
@@ -326,11 +327,11 @@ class TradeStrategy:
                 f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{confidence:.4f}\n")
         else:
             quote = pair[-3:]
-            quote_balance = float(self.balance.get(f"Z{quote}", 0.0))
+            raw_balance = self.balance.get(f"Z{quote}") or self.balance.get(quote)
+            quote_balance = float(raw_balance or 0)
 
             if quote != "GBP" and quote_balance <= 0:
-                print(f"[FX] No {quote} balance available — attempting GBP → {quote} conversion...")
-
+                print(f"[FX] No {quote} balance detected (Z{quote}/{quote}) — attempting GBP → {quote} conversion...")
                 conversion_success = kraken.convert_currency("GBP", quote, alloc_gbp)
                 time.sleep(2)
 
@@ -360,6 +361,29 @@ class TradeStrategy:
 
         print(f"[EXECUTED] Paper buy for {pair} @ {price} (vol={vol})")
         return used_gbp + alloc_gbp
+
+    def place_sell(self, pair, reason=""):
+        print(f"[SELL] Closing position on {pair} due to reason: {reason}")
+
+        position = self.open_positions.get(pair)
+        if not position or float(position.get("volume", 0)) <= 0:
+            print(f"[SELL] No open position found for {pair}")
+            return
+
+        vol = float(position["volume"])
+        result = self.kraken.place_order(pair=pair, side="sell", volume=vol)
+
+        if result.get("error"):
+            print(f"[SELL] Kraken rejected sell for {pair}: {result['error']}")
+            notify(f"{USER}: ❌ Sell failed for {pair}. Reason: {result['error']}", key=f"sellfail_{pair}", priority="high")
+            return
+
+        print(f"[SELL] Executed sell for {pair} ({vol} units) due to {reason}")
+        notify(f"{USER}: ✅ Sold {pair} ({vol} units) due to {reason}.", key=f"sellexec_{pair}", priority="high")
+
+        # remove from active positions
+        if pair in self.open_positions:
+            del self.open_positions[pair]
 
     def check_stop_loss(self, pair):
         if pair not in self.open_positions:
@@ -522,6 +546,9 @@ class TradeStrategy:
         print(f"[ARCHIVE] Archived old trade history to {archive_path}")
 
     def execute(self):
+        self.balance = self.kraken.get_balance()
+        self.open_positions = self.kraken.get_open_positions()
+
         def safe_subtract(a, b, *, label="unknown"):
             try:
                 af = float(a)

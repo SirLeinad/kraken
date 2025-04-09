@@ -2,7 +2,6 @@
   "model_version": "v1.0",
   "last_updated": "2025-04-05T11:00:00Z",
   "pairs": {
-    "ETHGBP": 0.88,
-    "DOTUSD": 0.81
+    "ETHGBP": 0.88
   }
 }
