@@ -50,8 +50,6 @@ STOP_LOSS = config.get("strategy.stop_loss_pct")
 EXCLUDED = config.get("trading_rules.excluded_pairs")
 USER = config.get("user")
 PAPER_MODE = config.get("paper_trading")
-MARGIN_ENABLED = config.get("margin.enabled", False)
-LEVERAGE_BY_PAIR = config.get("margin.leverage_by_pair", {})
 TAKE_PROFIT = config.get("strategy.take_profit_pct", 0.05)
 EXIT_AI_SCORE = config.get("strategy.exit_below_ai_score", 0.3)
 BUY_ALLOCATION_PCT = config.get("strategy.buy_allocation_pct", 0.2)
@@ -307,8 +305,6 @@ class TradeStrategy:
         alloc_quote = float(alloc_quote)
         price = float(price)
         vol = round(alloc_quote / price, 6)
-
-        leverage = LEVERAGE_BY_PAIR.get(pair.upper()) if MARGIN_ENABLED else None
         existing_vol = self.open_positions.get(pair, {}).get("volume", 0)
         max_vol = MAX_PAIR_EXPOSURE_GBP / float(price)
 
@@ -420,7 +416,6 @@ class TradeStrategy:
                 except Exception as e:
                     print(f"[ERROR] Paper trade failed for {pair}: {e}")
             else:
-                leverage = LEVERAGE_BY_PAIR.get(pair.upper()) if MARGIN_ENABLED else None
                 try:
                     result = kraken.place_order(pair, side="sell", volume=vol)
                     log_trade(pair, "sell", vol, current_price)

@@ -43,7 +43,7 @@ class Config:
     
     def log_unused_keys(self):
         defined_keys = {
-            "telegram", "kraken", "strategy", "discovery", "margin", "paper_trading",
+            "telegram", "kraken", "strategy", "discovery", "paper_trading",
             "user", "summary_time", "summary_retention_days", "train_from_backtest",
             "telegram_enabled", "use_ml_model", "model_version", "trading_rules", "telegram_intervals"
         }
@@ -85,11 +85,7 @@ class Config:
     @property
     def discovery(self):
         return self.config.get("discovery", {})
-
-    @property
-    def margin(self):
-        return self.config.get("margin", {})
-
+        
     @property
     def paper_trading(self):
         return self.config.get("paper_trading", False)

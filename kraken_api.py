@@ -166,21 +166,12 @@ class KrakenClient:
     def place_order(self, pair, side, volume, ordertype="market"):
         from config import Config
         config = Config()
-        leverage_pairs = config.get("margin.leverage_by_pair", {})
-
         order = {
             'pair': pair,
             'type': side,
             'ordertype': ordertype,
             'volume': str(volume),
         }
-
-        # Apply leverage only if explicitly defined
-        if pair in leverage_pairs:
-            order['leverage'] = str(leverage_pairs[pair])
-            # reduce_only removed for opening trades
-        # else: spot trade — no leverage keys added
-
         return self.api.query_private('AddOrder', order)
 
     def convert_currency(self, from_asset: str, to_asset: str, amount: float) -> bool:
@@ -192,7 +183,7 @@ class KrakenClient:
         }
 
         try:
-            result = self._post(path, params)
+            result = self.api.query_private("Convert", params)
             if result.get("error"):
                 print(f"[CONVERT] Conversion failed: {result['error']}")
                 return False

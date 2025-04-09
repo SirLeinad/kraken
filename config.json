@@ -11,15 +11,8 @@
     "api_secret": "VGetVrfhDp8WB8JXOZXZiu/6sNyR9GL2IviGD42UpRqR0QlRYXZTGMyPSObYQw8i5y6PNIOQRtLCo8CjHmKrDw=="
   },
   "margin": {
-    "enabled": true,
-    "leverage_by_pair": {
-      "ETHGBP": 3,
-      "SOLGBP": 3,
-      "USDTUSD": 2,
-      "USDTEUR": 3,
-      "XBTGBP": 3,
-      "XBTUSD": 5
-    }
+    "enabled": false,
+    "leverage_by_pair": {}
   },
   "model_staleness_days": 7,
   "model_version": "v1.0",
