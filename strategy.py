@@ -292,8 +292,13 @@ class TradeStrategy:
         if confidence is None:
             print(f"[BLOCKED] No confidence score found for {pair} in place_buy()")
             return used_gbp
-
         print(f"[CONFIDENCE_USED] {pair} → {confidence:.4f}")
+
+        last_conf = self.open_positions.get(pair, {}).get("confidence_at_entry")
+        if last_conf and confidence <= last_conf + 0.01:
+            print(f"[SKIP] Confidence {confidence:.2f} hasn't increased since last buy ({last_conf:.2f})")
+            return used_gbp
+        self.open_positions[pair] = {'price': price, 'volume': vol, 'confidence_at_entry': confidence}
 
         scaling_factor = (confidence - 0.3) / (0.95 - 0.3)  # map to 0–1 scale
         alloc_pct = config.get("strategy.buy_allocation_pct", 0.10)
@@ -350,7 +355,12 @@ class TradeStrategy:
                 return used_gbp
 
             self.open_positions[pair] = {'price': price, 'volume': vol}
-            db.save_position(pair, price, vol)
+            self.db.save_position(pair, price, vol)
+            self.open_positions[pair] = {
+                "price": price,
+                "volume": vol,
+                "confidence_at_entry": confidence
+            }
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
             log_trade(pair, "buy", vol, price)
             with open("logs/trade_log.csv", "a") as f:

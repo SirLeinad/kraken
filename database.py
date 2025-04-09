@@ -22,6 +22,7 @@ class Database:
                 pair TEXT PRIMARY KEY,
                 price REAL,
                 volume REAL,
+                confidence REAL,
                 timestamp TEXT
             )
         """)
@@ -59,15 +60,17 @@ class Database:
 
     def save_position(self, pair, price, volume):
         c = self.conn.cursor()
-        c.execute("REPLACE INTO positions (pair, price, volume, timestamp) VALUES (?, ?, ?, ?)",
-                  (pair, price, volume, time.ctime()))
+        c.execute("REPLACE INTO positions (pair, price, volume, confidence, timestamp) VALUES (?, ?, ?, ?, ?)", (pair, price, volume, confidence, time.ctime()))
         self.conn.commit()
 
     def load_positions(self):
         c = self.conn.cursor()
-        c.execute("SELECT pair, price, volume FROM positions")
+        c.execute("SELECT pair, price, volume, confidence FROM positions")
         rows = c.fetchall()
-        return {pair: {'price': float(price), 'volume': float(volume)} for pair, price, volume in rows}
+        return {
+            pair: {'price': float(price), 'volume': float(volume), 'confidence_at_entry': float(confidence)}
+            for pair, price, volume, confidence in rows
+        }
 
     def remove_position(self, pair):
         c = self.conn.cursor()
