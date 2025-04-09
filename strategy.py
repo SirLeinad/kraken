@@ -29,6 +29,9 @@ def safe_sub(a, b, label="unknown"):
         return float(a) - float(b)
     except Exception as e:
         print(f"[SAFE_SUB ERROR] {label}: {a} ({type(a)}), {b} ({type(b)}) → {e}")
+        import traceback
+        traceback.print_stack()
+
         return 0.0
 
 def safe_div(a, b, label="unknown"):
@@ -461,14 +464,16 @@ class TradeStrategy:
             lines.append("\n📌 Open Positions:")
             for pair, pos in self.open_positions.items():
                 try:
-                    current_price = self.fetch_latest_price(pair)
-                    entry_price = float(pos['price'])
-                    entry_volume = float(pos['volume'])
-                    gain = (float(current_price) - float(entry_price)) * float(entry_volume)
+                    current_price = float(self.fetch_latest_price(pair))
+                    entry_price = float(pos.get("price", 0))
+                    entry_volume = float(pos.get("volume", 0))
+                    gain = (current_price - entry_price) * entry_volume
                     emoji = "🟢" if gain >= 0 else "🔻"
-                    lines.append(f"{emoji} {pair}: {gain:+.2f} GBP")
-                except:
-                    continue
+                    pl_lines.append(f"{emoji} {pair}: {gain:+.2f} GBP")
+                    net_gain += gain
+                except Exception as e:
+                    print(f"[ERROR] P&L calc failed for {pair}: {e}")
+
 
         notify(f"{USER}:\n" + "\n".join(lines), key="daily_summary", priority="low")
 
