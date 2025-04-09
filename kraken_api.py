@@ -152,8 +152,21 @@ class KrakenClient:
             return pd.DataFrame()
 
     def get_tradable_asset_pairs(self):
-        self._rate_limit()
-        return self.k.get_tradable_asset_pairs()
+        try:
+            result = self.api.query_public("AssetPairs")
+            return [k for k, v in result.get("result", {}).items()
+                    if ".d" not in k and v.get("status") == "online"]
+        except Exception as e:
+            print(f"[KRAKEN] Error fetching asset pairs: {e}")
+            return []
+
+    def estimate_volume_gbp(self, df):
+        try:
+            vol_sum = df["volume"].sum()
+            price_avg = df["close"].mean()
+            return vol_sum * price_avg
+        except Exception:
+            return 0
 
     def get_recent_trades(self, pair):
         self._rate_limit()

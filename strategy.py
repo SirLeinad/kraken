@@ -361,6 +361,7 @@ class TradeStrategy:
                 "volume": vol,
                 "confidence_at_entry": confidence
             }
+
             notify_trade_summary(USER, pair, action="buy", vol=vol, price=price, paper=PAPER_MODE)
             log_trade(pair, "buy", vol, price)
             with open("logs/trade_log.csv", "a") as f:
