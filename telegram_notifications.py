@@ -24,7 +24,12 @@ def notify(msg: str, key: str = None, priority: str = "medium"):
 
     now = time.time()
     if key:
-        last = db.get_state(f"last_sent_{key}") or 0
+        try:
+            last = float(db.get_state(f"last_sent_{key}") or 0)
+        except Exception as e:
+            print(f"[WARN] Invalid last_sent_{key} value: {e}")
+            last = 0.0
+
         if priority == "high":
             pass  # always send
         elif priority == "medium" and now - last < MEDIUM_INTERVAL:

@@ -104,7 +104,10 @@ def run_bot():
             print('[LOOP] Executing strategy...')
             strategy.execute()
         except Exception as e:
+            import traceback
             print(f"[ERROR] strategy.execute failed: {e}")
+            traceback.print_exc()
+
 
         # Daily summary
         dt_now = datetime.datetime.now()

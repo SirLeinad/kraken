@@ -13,22 +13,17 @@ import xgboost as xgb
 warnings.filterwarnings("ignore", category=FutureWarning)
 
 config = Config()
-USE_ML_MODEL = config.get("use_ml_model", default=False)
-MODEL_PATH = "models/model_v1.0.pkl"
-
 kraken = KrakenClient()
 
-# Load model if needed
+USE_ML_MODEL = config.get("use_ml_model", default=False)
+MODEL_PATH = "models/model_v2.pkl"
+
 MODEL = None
 if USE_ML_MODEL:
     try:
         MODEL = joblib.load(MODEL_PATH)
         print("✅ ML model loaded for confidence scoring.")
         print(f"[XGBOOST] Booster backend: {MODEL.get_booster().attributes()}")
-        #booster = MODEL.get_booster()
-        #print(f"[XGBOOST] Raw booster config:")
-        #print(booster.save_config())  # This shows exact params including predictor, device, method
-
     except Exception as e:
         print(f"⚠️ Failed to load model: {e}")
         MODEL = None
@@ -74,15 +69,28 @@ def calculate_confidence(pair: str, interval: int = 1, window: int = 30) -> floa
                 latest = df.iloc[-1].copy()
                 latest["rsi"] = compute_rsi(df).iloc[-1]
                 latest["sma"] = compute_sma(df["close"]).iloc[-1]
+                latest["price_delta"] = df["close"].pct_change().iloc[-1]
+                latest["volume_delta"] = df["volume"].pct_change().iloc[-1]
+                latest["volatility"] = df["close"].pct_change().rolling(5).std().iloc[-1]
             except Exception as e:
                 print(f"[ERROR] Feature computation failed for {pair}: {e}")
                 return 0.0
 
-            if pd.isna(latest["rsi"]) or pd.isna(latest["sma"]):
+            if any(pd.isna(latest.get(k)) for k in ["sma", "rsi", "price_delta", "volume_delta", "volatility"]):
+                print(f"[WARN] Skipping {pair}, contains NaN in ML features")
                 return 0.0
 
-            features = pd.DataFrame([[latest["sma"], latest["rsi"]]], columns=["sma", "rsi"])
-            features = features.astype(np.float32)  
+            features = pd.DataFrame([{
+                "sma": latest["sma"],
+                "rsi": latest["rsi"],
+                "price_delta": latest["price_delta"],
+                "volume_delta": latest["volume_delta"],
+                "volatility": latest["volatility"],
+            }], dtype=np.float32)
+
+            print(f"[FEATURES] {pair} input → {features.to_dict(orient='records')}")
+            proba = MODEL.predict_proba(features)[0][1]
+            return round(float(proba), 4) 
             
             if not hasattr(calculate_confidence, "_last_features"):
                 calculate_confidence._last_features = {}

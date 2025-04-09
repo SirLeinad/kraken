@@ -183,10 +183,25 @@ class KrakenClient:
 
         return self.api.query_private('AddOrder', order)
 
+    def convert_currency(self, from_asset: str, to_asset: str, amount: float) -> bool:
+        path = "/0/private/Convert"
+        params = {
+            "from": from_asset,
+            "to": to_asset,
+            "amount": str(amount)
+        }
 
-    def convert_currency(self, from_cur, to_cur, volume):
-        pair = f"{from_cur}/{to_cur}"
-        return self.place_order(pair, "buy", volume)
+        try:
+            result = self._post(path, params)
+            if result.get("error"):
+                print(f"[CONVERT] Conversion failed: {result['error']}")
+                return False
+            print(f"[CONVERT] Successfully converted {amount} {from_asset} → {to_asset}")
+            return True
+        except Exception as e:
+            print(f"[CONVERT] Exception: {e}")
+            return False
+
 
 # Usage:
 # kraken = KrakenClient()

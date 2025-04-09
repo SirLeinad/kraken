@@ -1,0 +1,14 @@
+{
+  "BTCGBP": {
+    "pnl": "12.34",
+    "timestamp": "2025-04-09T12:00:00Z",
+    "confidence": 0.87,
+    "model_version": "v1.2"
+  },
+  "ETHGBP": {
+    "pnl": -4.56,
+    "timestamp": "2025-04-09T13:00:00Z",
+    "confidence": 0.79,
+    "model_version": "v1.2"
+  }
+}

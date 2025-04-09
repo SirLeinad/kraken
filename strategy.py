@@ -14,7 +14,7 @@ from database import Database
 from exporter import log_trade
 from pathlib import Path
 from collections import defaultdict
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from logger import log_trade_result
 from kraken_api import KrakenClient
 from ai_model import calculate_confidence
@@ -137,7 +137,7 @@ class TradeStrategy:
         if quote == "GBP":
             return gbp_amount
 
-        fx_pair = quote + "GBP"
+        fx_pair = "GBP" + quote if quote in {"USD", "EUR"} else quote + "GBP"
         try:
             ticker = kraken.get_ticker(fx_pair)
             rate = float(ticker["c"].iloc[0][0])
@@ -155,8 +155,9 @@ class TradeStrategy:
                 ts = data.get("last_updated")
                 if not ts:
                     return True
-                last_time = datetime.fromisoformat(timestamp.replace("Z", "+00:00"))
-                return (datetime.utcnow() - last_time) > timedelta(hours=self.discovery_interval)
+                last_time = datetime.fromisoformat(ts.replace("Z", "+00:00"))
+                now = datetime.now(timezone.utc)
+                return (now - last_time) > timedelta(hours=self.discovery_interval)
         except Exception as e:
             print(f"[DISCOVERY] Timestamp check failed: {e}")
             return True
@@ -186,7 +187,7 @@ class TradeStrategy:
             volume=volume,
             entry_price=float(entry_price),
             exit_price=float(exit_price),
-            pnl=exit_price - entry_price,
+            pnl=safe_sub(exit_price, entry_price, "log_trade_result"),
             model=self.model_version,
             confidence=self.ai_scores.get(pair)
         )
@@ -328,6 +329,23 @@ class TradeStrategy:
             with open("logs/paper_trade_log.csv", "a") as f:
                 f.write(f"{datetime.utcnow()},{pair},buy,{vol},{price},{confidence:.4f}\n")
         else:
+            quote = pair[-3:]
+            quote_balance = float(self.balance.get(f"Z{quote}", 0.0))
+
+            if quote != "GBP" and quote_balance <= 0:
+                print(f"[FX] No {quote} balance available — attempting GBP → {quote} conversion...")
+
+                conversion_success = kraken.convert_currency("GBP", quote, alloc_gbp)
+                time.sleep(2)
+
+                self.balance = kraken.get_balance()
+                quote_balance = float(self.balance.get(f"Z{quote}", 0.0))
+
+                if not conversion_success or quote_balance <= 0:
+                    print(f"[BLOCKED] Conversion to {quote} failed or insufficient")
+                    notify(f"{USER}: ❌ Auto-conversion to {quote} failed. Skipping {pair}.", key=f"fxfail_{pair}", priority="medium")
+                    return used_gbp
+
             result = kraken.place_order(pair, side="buy", volume=vol)
             if not result or result.get("error"):
                 print(f"[BLOCKED] Kraken rejected trade: {result.get('error')}")
@@ -515,15 +533,15 @@ class TradeStrategy:
                 bf = float(b)
                 return af - bf
             except Exception as e:
-                print(f"[TYPE ERROR] Subtraction failed in {label}: {a}({type(a)}), {b}({type(b)}) → {e}")
                 traceback.print_stack()
+                print(f"[TYPE ERROR] Subtraction failed in {label}: {a}({type(a)}), {b}({type(b)}) → {e}")
                 return 0.0
 
         print('[STRATEGY] Starting trade checks...')
         used_gbp = 0.0
         report = []
         for pair in self.eligible_pairs():
-            print(f"[DEBUG] Starting eval for: {pair}")
+            #print(f"[DEBUG] Starting eval for: {pair}")
             confidence = self.ai_scores.get(pair)
             last_trade = self.trade_history.get(pair, {})
             
@@ -549,8 +567,10 @@ class TradeStrategy:
                 else:
                     report.append(f"⏸ No signal: {pair}")
             except Exception as e:
-                print(f"[ERROR] Exception during strategy execution for {pair}: {e}")
-                report.append(f"❌ Error {pair}: {e}")
+                print(f"[CRITICAL] strategy.execute failed for {pair}: {e}")
+                import traceback
+                traceback.print_exc()
+                raise
 
         if report:
             all_bal = kraken.get_all_balances()
